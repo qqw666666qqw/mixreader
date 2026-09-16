@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夹读 · 中英混读阅读器</title>
+<style>
+  :root {
+    --paper: #f5eee0;
+    --card: #fffdf6;
+    --ink: #262019;
+    --ink2: #6f6353;
+    --line: #ddd0b6;
+    --accent: #b23a26;
+    --accent-deep: #8c2b1a;
+    --accent-soft: #f6e2da;
+    --ok: #4a7c59;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+    background:
+      radial-gradient(1100px 520px at 88% -8%, #efe1c4 0%, transparent 60%),
+      radial-gradient(900px 480px at -8% 108%, #ece0c9 0%, transparent 55%),
+      var(--paper);
+    min-height: 100vh;
+  }
+  .sans { font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; }
+
+  header {
+    display: flex; align-items: center; gap: 18px;
+    max-width: 1180px; margin: 0 auto; padding: 34px 24px 10px;
+  }
+  .seal {
+    flex: none; width: 62px; height: 62px;
+    background: var(--accent); color: #fdf6ec;
+    display: grid; place-items: center;
+    font-size: 20px; line-height: 1.15; text-align: center;
+    border-radius: 8px; transform: rotate(-4deg);
+    box-shadow: 0 6px 16px rgba(178, 58, 38, .28), inset 0 0 0 2px rgba(255,255,255,.25);
+    letter-spacing: 2px;
+  }
+  header h1 { margin: 0; font-size: 27px; letter-spacing: 1px; }
+  header h1 small { font-size: 14px; color: var(--ink2); font-weight: 400; margin-left: 8px; }
+  header p { margin: 6px 0 0; color: var(--ink2); font-size: 14px; max-width: 640px; }
+
+  main {
+    max-width: 1180px; margin: 0 auto; padding: 18px 24px 60px;
+    display: grid; grid-template-columns: 330px 1fr; gap: 22px; align-items: start;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 10px 26px rgba(96, 72, 40, .07);
+    animation: rise .45s ease both;
+  }
+  aside .card:nth-child(2) { animation-delay: .06s; }
+  aside .card:nth-child(3) { animation-delay: .12s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .card h2 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: baseline; gap: 8px; }
+  .card h2 small { color: var(--ink2); font-size: 12px; font-weight: 400; }
+  .hint { margin: 0 0 10px; font-size: 12.5px; color: var(--ink2); }
+  .hint code { background: var(--accent-soft); color: var(--accent-deep); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  .filerow { display: flex; gap: 8px; align-items: center; }
+  .btn-file {
+    display: inline-block; cursor: pointer;
+    background: var(--ink); color: #f6efe2;
+    font-size: 13px; padding: 7px 14px; border-radius: 6px;
+  }
+  .btn-file:hover { background: #3a322a; }
+  input[type="file"] { display: none; }
+  select {
+    font: inherit; font-size: 12.5px; color: var(--ink2);
+    background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px;
+  }
+  .status { margin: 10px 0 0; font-size: 12.5px; color: var(--ink2); min-height: 18px; }
+  .status.err { color: var(--accent-deep); }
+  .card.ok .status { color: var(--ok); }
+  .card.drag { outline: 2px dashed var(--accent); outline-offset: -6px; background: #fff9f0; }
+
+  .opt { margin: 12px 0 0; font-size: 13.5px; }
+  .opt > span { display: block; color: var(--ink2); font-size: 12.5px; margin-bottom: 5px; }
+  .modes { display: flex; flex-direction: column; gap: 6px; }
+  .modes label { display: flex; gap: 7px; align-items: center; cursor: pointer; }
+  .modes .ex { color: var(--accent-deep); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .rangeRow { display: flex; align-items: center; gap: 10px; }
+  .rangeRow output { font-size: 12.5px; color: var(--ink2); width: 44px; text-align: right; }
+  #notesMode { flex: 1; }
+
+  .actions { display: flex; gap: 10px; }
+  button {
+    flex: 1; font: inherit; font-size: 14px; cursor: pointer;
+    padding: 10px 12px; border-radius: 6px; border: 1px solid transparent;
+  }
+  #demoBtn { background: var(--accent); color: #fdf6ec; }
+  #demoBtn:hover { background: var(--accent-deep); }
+  #exportBtn { background: transparent; border-color: var(--line); color: var(--ink); }
+  #exportBtn:hover:not(:disabled) { border-color: var(--ink2); }
+  #exportBtn:disabled { opacity: .45; cursor: default; }
+
+  #reader { min-width: 0; animation: rise .5s .15s ease both; }
+  #statsbar {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-size: 12.5px; color: var(--ink2); letter-spacing: .5px;
+    padding: 0 6px 9px; border-bottom: 1px solid var(--line); margin-bottom: 4px;
+  }
+  .tools button {
+    font: inherit; font-size: 12px; color: var(--ink2); cursor: pointer;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 10px; margin-left: 6px;
+  }
+  .tools button:hover { border-color: var(--accent); color: var(--accent-deep); }
+  #page {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 40px 46px;
+    line-height: 2;
+    letter-spacing: .02em;
+    text-align: justify;
+    white-space: pre-wrap;
+    word-break: break-all;
+    box-shadow: 0 10px 26px rgba(96, 72, 40, .07);
+    min-height: 320px;
+  }
+  .w { color: var(--accent-deep); font-weight: 700; font-family: Georgia, "Times New Roman", serif; }
+  .w i { font-style: normal; font-weight: 400; color: var(--ink2); font-size: .8em; font-family: inherit; }
+  .w.zh { font-family: inherit; font-weight: 600; }
+  #page.notes-tap .w { cursor: pointer; }
+  #page.notes-tap .w i { filter: blur(5px); opacity: .75; transition: filter .18s ease, opacity .18s ease; }
+  #page.notes-tap .w.revealed i, #page.all-revealed .w i { filter: none; opacity: 1; }
+  .empty { text-align: center; color: var(--ink2); padding: 60px 0; }
+  .empty .big { font-size: 72px; color: #d9cbab; line-height: 1.2; }
+  .empty p { font-size: 14px; line-height: 1.9; }
+
+  #vocab { margin-top: 14px; }
+  #vocab h3 { font-size: 14px; margin: 0 0 8px; color: var(--ink2); }
+  .chip {
+    display: inline-flex; align-items: baseline; gap: 5px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; margin: 0 7px 7px 0; font-size: 12.5px; color: var(--ink2);
+  }
+  .chip b { color: var(--accent-deep); font-family: Georgia, serif; font-size: 13px; }
+
+  @media (max-width: 920px) {
+    main { grid-template-columns: 1fr; }
+    #page { padding: 26px 22px; }
+    header { padding-top: 24px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="seal">夹读</div>
+  <div>
+    <h1>夹读<small>中英混读阅读器</small></h1>
+    <p>上传一本英文词书和一本中文书，把书中的中文词替换成对应英文单词，在语境里背单词。例如：他养了一只 <b style="color:var(--accent-deep)">dog（狗）</b>，注释默认模糊，点击单词才显示，方便先回忆再核对。</p>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <section class="card" id="wbZone">
+      <h2>① 英文词书 <small>.txt / .docx / .pdf</small></h2>
+      <p class="hint sans">每行一词，如 <code>apple 苹果</code> 或 <code>apple n. 苹果；苹果树</code><br>旧版 .doc 请先在 Word 里另存为 .docx</p>
+      <div class="filerow sans">
+        <label class="btn-file" for="wbFile">选择词书…</label>
+        <input type="file" id="wbFile" accept=".txt,.docx,.pdf,text/plain">
+        <select id="wbEnc"><option value="utf-8">UTF-8</option><option value="gbk">GBK</option></select>
+      </div>
+      <p class="status sans" id="wbStatus">未加载</p>
+    </section>
+
+    <section class="card" id="bkZone">
+      <h2>② 中文书 <small>.txt / .docx / .pdf</small></h2>
+      <p class="hint sans">支持拖拽上传；旧版 .doc 请先另存为 .docx</p>
+      <div class="filerow sans">
+        <label class="btn-file" for="bkFile">选择中文书…</label>
+        <input type="file" id="bkFile" accept=".txt,.docx,.pdf,text/plain">
+        <select id="bkEnc"><option value="utf-8">UTF-8</option><option value="gbk">GBK</option></select>
+      </div>
+      <p class="status sans" id="bkStatus">未加载</p>
+    </section>
+
+    <section class="card sans">
+      <h2 style="font-family:inherit">显示与替换</h2>
+      <div class="opt">
+        <span>显示模式</span>
+        <div class="modes">
+          <label><input type="radio" name="mode" value="enzh" checked>英文（中文）<span class="ex">— dog（狗）</span></label>
+          <label><input type="radio" name="mode" value="en">纯英文<span class="ex">— dog</span></label>
+          <label><input type="radio" name="mode" value="zhen">中文（英文）<span class="ex">— 狗（dog）</span></label>
+        </div>
+      </div>
+      <div class="opt">
+        <span>注释显示</span>
+        <div class="rangeRow">
+          <select id="notesMode">
+            <option value="tap" selected>点击显示（先回忆，再点击核对）</option>
+            <option value="show">直接显示</option>
+          </select>
+        </div>
+      </div>
+      <div class="opt">
+        <span>最短替换词长（字）</span>
+        <div class="rangeRow">
+          <select id="minLen"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+          <output></output>
+        </div>
+      </div>
+      <div class="opt">
+        <span>替换密度（留空部分词考查自己）</span>
+        <div class="rangeRow">
+          <input type="range" id="density" min="10" max="100" step="5" value="100">
+          <output id="densityOut">100%</output>
+        </div>
+      </div>
+      <div class="opt">
+        <span>正文字号</span>
+        <div class="rangeRow">
+          <input type="range" id="fontSize" min="16" max="30" value="20">
+          <output></output>
+        </div>
+      </div>
+    </section>
+
+    <div class="actions sans">
+      <button id="demoBtn">载入示例</button>
+      <button id="exportBtn" disabled>导出 TXT</button>
+    </div>
+  </aside>
+
+  <section id="reader">
+    <div id="statsbar" class="sans">
+      <span id="statsText">等待加载词书与中文书…</span>
+      <span class="tools">
+        <button id="revealAll" type="button">全部显示</button>
+        <button id="hideAll" type="button">全部隐藏</button>
+      </span>
+    </div>
+    <article id="page"><div class="empty"><div class="big">讀</div><p>加载词书和中文书后，这里会显示混读后的内容。<br>也可以先点左侧「载入示例」体验效果。</p></div></article>
+    <div id="vocab" class="sans"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
