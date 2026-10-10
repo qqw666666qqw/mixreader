@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>夹读 · 中英混读阅读器</title>
+<title>夹读 · 多语混读阅读器</title>
 <style>
   :root {
     --paper: #f5eee0;
@@ -85,29 +85,71 @@
   .status.err { color: var(--accent-deep); }
   .card.ok .status { color: var(--ok); }
   .card.drag { outline: 2px dashed var(--accent); outline-offset: -6px; background: #fff9f0; }
+  #cleanReport { margin-top: 8px; font-size: 12px; color: var(--ink2); }
+  #cleanReport summary { cursor: pointer; color: var(--accent-deep); }
+  #cleanReportBody { max-height: 180px; overflow: auto; margin-top: 7px; padding: 8px; background: var(--paper); border-radius: 6px; }
+  #cleanReportBody p { margin: 0 0 5px; line-height: 1.45; word-break: break-all; }
 
   .opt { margin: 12px 0 0; font-size: 13.5px; }
   .opt > span { display: block; color: var(--ink2); font-size: 12.5px; margin-bottom: 5px; }
   .modes { display: flex; flex-direction: column; gap: 6px; }
   .modes label { display: flex; gap: 7px; align-items: center; cursor: pointer; }
   .modes .ex { color: var(--accent-deep); }
+  .checkline { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; line-height: 1.5; }
+  .checkline input { margin-top: 3px; }
   input[type="range"] { width: 100%; accent-color: var(--accent); }
   .rangeRow { display: flex; align-items: center; gap: 10px; }
   .rangeRow output { font-size: 12.5px; color: var(--ink2); width: 44px; text-align: right; }
   #notesMode { flex: 1; }
 
-  .actions { display: flex; gap: 10px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
   button {
     flex: 1; font: inherit; font-size: 14px; cursor: pointer;
     padding: 10px 12px; border-radius: 6px; border: 1px solid transparent;
   }
   #demoBtn { background: var(--accent); color: #fdf6ec; }
   #demoBtn:hover { background: var(--accent-deep); }
-  #exportBtn { background: transparent; border-color: var(--line); color: var(--ink); }
-  #exportBtn:hover:not(:disabled) { border-color: var(--ink2); }
-  #exportBtn:disabled { opacity: .45; cursor: default; }
+  #exportBtn, #exportHtmlBtn { background: transparent; border-color: var(--line); color: var(--ink); }
+  #exportBtn:hover:not(:disabled), #exportHtmlBtn:hover:not(:disabled) { border-color: var(--ink2); }
+  #exportBtn:disabled, #exportHtmlBtn:disabled { opacity: .45; cursor: default; }
 
   #reader { min-width: 0; animation: rise .5s .15s ease both; }
+  #chapterNav {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px;
+    align-items: center; margin-bottom: 10px;
+  }
+  #chapterNav[hidden] { display: none; }
+  #chapterNav button {
+    flex: none; padding: 7px 12px; font-size: 12.5px;
+    color: var(--ink2); background: var(--card); border-color: var(--line);
+  }
+  #chapterNav button:disabled { opacity: .4; cursor: default; }
+  #chapterSelect { width: 100%; min-width: 0; padding: 7px 9px; background: var(--card); }
+  .chapter-footer {
+    display: flex; gap: 10px; margin-top: 22px; padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .chapter-footer[hidden] { display: none; }
+  .chapter-footer button {
+    background: var(--card); color: var(--accent-deep); border-color: var(--line);
+    min-height: 44px; padding: 10px 8px;
+  }
+  .chapter-footer button:disabled { opacity: .4; cursor: default; }
+  .directory-dialog {
+    width: min(480px, calc(100% - 32px)); max-height: 80vh;
+    padding: 20px; background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px;
+  }
+  .directory-dialog::backdrop { background: rgba(38, 32, 25, .4); }
+  .directory-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .directory-heading h2 { margin: 0; font-size: 18px; }
+  .directory-heading button { flex: none; background: var(--paper); color: var(--ink2); }
+  .directory-list { max-height: 55vh; overflow-y: auto; margin-top: 14px; }
+  .directory-list button {
+    display: block; width: 100%; text-align: left; margin-bottom: 6px;
+    background: var(--paper); color: var(--ink2); line-height: 1.5;
+  }
+  .directory-list button[aria-current="true"] { background: var(--accent-soft); color: var(--accent-deep); }
   #statsbar {
     display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
     font-size: 12.5px; color: var(--ink2); letter-spacing: .5px;
@@ -132,8 +174,16 @@
     box-shadow: 0 10px 26px rgba(96, 72, 40, .07);
     min-height: 320px;
   }
-  .w { color: var(--accent-deep); font-weight: 700; font-family: Georgia, "Times New Roman", serif; }
+  .chapter-title {
+    margin: 0 0 26px; color: var(--ink); font-size: 1.45em;
+    line-height: 1.4; text-align: center; letter-spacing: .08em;
+  }
+  .w {
+    color: var(--accent-deep); font-weight: 700;
+    font-family: Georgia, "Noto Serif", "Yu Mincho", "Hiragino Mincho ProN", "Apple SD Gothic Neo", "Noto Naskh Arabic", "Times New Roman", serif;
+  }
   .w i { font-style: normal; font-weight: 400; color: var(--ink2); font-size: .8em; font-family: inherit; }
+  .w .term { font-weight: inherit; }
   .w.zh { font-family: inherit; font-weight: 600; }
   #page.notes-tap .w { cursor: pointer; }
   #page.notes-tap .w i { filter: blur(5px); opacity: .75; transition: filter .18s ease, opacity .18s ease; }
@@ -149,12 +199,16 @@
     background: var(--card); border: 1px solid var(--line); border-radius: 999px;
     padding: 3px 11px; margin: 0 7px 7px 0; font-size: 12.5px; color: var(--ink2);
   }
-  .chip b { color: var(--accent-deep); font-family: Georgia, serif; font-size: 13px; }
+  .chip b { color: var(--accent-deep); font-family: Georgia, "Noto Serif", serif; font-size: 13px; }
 
   @media (max-width: 920px) {
     main { grid-template-columns: 1fr; }
     #page { padding: 26px 22px; }
     header { padding-top: 24px; }
+  }
+  @media (max-width: 520px) {
+    #chapterNav { grid-template-columns: 1fr 1fr; }
+    #chapterSelect { grid-column: 1 / -1; grid-row: 1; }
   }
 </style>
 </head>
@@ -162,27 +216,31 @@
 <header>
   <div class="seal">夹读</div>
   <div>
-    <h1>夹读<small>中英混读阅读器</small></h1>
-    <p>上传一本英文词书和一本中文书，把书中的中文词替换成对应英文单词，在语境里背单词。例如：他养了一只 <b style="color:var(--accent-deep)">dog（狗）</b>，注释默认模糊，点击单词才显示，方便先回忆再核对。</p>
+    <h1>夹读<small>多语混读阅读器</small></h1>
+    <p>上传一本目标语词书和一本中文书，把书中的中文词替换成英语、日语、韩语、法语等词条。例如：他养了一只 <b style="color:var(--accent-deep)">dog（狗）</b>，注释默认模糊，点击词条才显示，方便先回忆再核对。</p>
   </div>
 </header>
 
 <main>
   <aside>
     <section class="card" id="wbZone">
-      <h2>① 英文词书 <small>.txt / .docx / .pdf</small></h2>
-      <p class="hint sans">每行一词，如 <code>apple 苹果</code> 或 <code>apple n. 苹果；苹果树</code><br>旧版 .doc 请先在 Word 里另存为 .docx</p>
+      <h2>① 目标语词书 <small>.txt / .docx / .pdf</small></h2>
+      <p class="hint sans">左侧写目标语，右侧写中文，如 <code>bonjour 你好</code>、<code>こんにちは 你好</code>、<code>사랑 爱</code><br>支持短语和词性标注；多语 TXT 建议使用 UTF-8 编码</p>
       <div class="filerow sans">
         <label class="btn-file" for="wbFile">选择词书…</label>
         <input type="file" id="wbFile" accept=".txt,.docx,.pdf,text/plain">
         <select id="wbEnc"><option value="utf-8">UTF-8</option><option value="gbk">GBK</option></select>
       </div>
       <p class="status sans" id="wbStatus">未加载</p>
+      <details id="cleanReport" class="sans" hidden>
+        <summary>查看词书清洗报告</summary>
+        <div id="cleanReportBody"></div>
+      </details>
     </section>
 
     <section class="card" id="bkZone">
       <h2>② 中文书 <small>.txt / .docx / .pdf</small></h2>
-      <p class="hint sans">支持拖拽上传；旧版 .doc 请先另存为 .docx</p>
+      <p class="hint sans">电脑可拖拽；手机/iPad 可从“文件”选择。书籍仅在当前浏览器处理，不上传、不跨设备同步。</p>
       <div class="filerow sans">
         <label class="btn-file" for="bkFile">选择中文书…</label>
         <input type="file" id="bkFile" accept=".txt,.docx,.pdf,text/plain">
@@ -196,9 +254,9 @@
       <div class="opt">
         <span>显示模式</span>
         <div class="modes">
-          <label><input type="radio" name="mode" value="enzh" checked>英文（中文）<span class="ex">— dog（狗）</span></label>
-          <label><input type="radio" name="mode" value="en">纯英文<span class="ex">— dog</span></label>
-          <label><input type="radio" name="mode" value="zhen">中文（英文）<span class="ex">— 狗（dog）</span></label>
+          <label><input type="radio" name="mode" value="enzh" checked>目标语（中文）<span class="ex">— dog（狗）</span></label>
+          <label><input type="radio" name="mode" value="en">纯目标语<span class="ex">— dog</span></label>
+          <label><input type="radio" name="mode" value="zhen">中文（目标语）<span class="ex">— 狗（dog）</span></label>
         </div>
       </div>
       <div class="opt">
@@ -211,9 +269,14 @@
         </div>
       </div>
       <div class="opt">
+        <span>词书清洗</span>
+        <label class="checkline"><input type="checkbox" id="strictMode" checked>严格清洗（自动过滤版式噪声、高风险单字和多义冲突）</label>
+        <p class="hint" style="margin-top:5px">建议每份词书只使用一种目标语；混合语种词书可关闭严格清洗。</p>
+      </div>
+      <div class="opt">
         <span>最短替换词长（字）</span>
         <div class="rangeRow">
-          <select id="minLen"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+          <select id="minLen"><option value="1">1（风险较高）</option><option value="2" selected>2（推荐）</option><option value="3">3</option><option value="4">4</option></select>
           <output></output>
         </div>
       </div>
@@ -236,10 +299,16 @@
     <div class="actions sans">
       <button id="demoBtn">载入示例</button>
       <button id="exportBtn" disabled>导出 TXT</button>
+      <button id="exportHtmlBtn" disabled>导出阅读包</button>
     </div>
   </aside>
 
   <section id="reader">
+    <div id="chapterNav" class="sans" hidden>
+      <button id="prevChapter" type="button">上一章</button>
+      <select id="chapterSelect" aria-label="章节目录"></select>
+      <button id="nextChapter" type="button">下一章</button>
+    </div>
     <div id="statsbar" class="sans">
       <span id="statsText">等待加载词书与中文书…</span>
       <span class="tools">
@@ -249,12 +318,24 @@
     </div>
     <article id="page"><div class="empty"><div class="big">讀</div><p>加载词书和中文书后，这里会显示混读后的内容。<br>也可以先点左侧「载入示例」体验效果。</p></div></article>
     <div id="vocab" class="sans"></div>
+    <nav id="chapterFooter" class="chapter-footer sans" aria-label="章末导航" hidden>
+      <button id="prevChapterBottom" type="button">上一章</button>
+      <button id="openDirectory" type="button" aria-haspopup="dialog">目录</button>
+      <button id="nextChapterBottom" type="button">下一章</button>
+    </nav>
   </section>
 </main>
+<dialog id="chapterDirectory" class="directory-dialog sans" aria-labelledby="directoryTitle">
+  <div class="directory-heading">
+    <h2 id="directoryTitle">章节目录</h2>
+    <button id="closeDirectory" type="button">关闭</button>
+  </div>
+  <div id="directoryList" class="directory-list"></div>
+</dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="core.js"></script>
-<script src="app.js"></script>
+<script src="core.js?v=20261010-6"></script>
+<script src="app.js?v=20261010-6"></script>
 </body>
 </html>
