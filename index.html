@@ -64,7 +64,7 @@
   aside .card:nth-child(3) { animation-delay: .12s; }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-  .card h2 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: baseline; gap: 8px; }
+  .card h2 { margin: 0 0 8px; font-size: 16px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
   .card h2 small { color: var(--ink2); font-size: 12px; font-weight: 400; }
   .hint { margin: 0 0 10px; font-size: 12.5px; color: var(--ink2); }
   .hint code { background: var(--accent-soft); color: var(--accent-deep); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
@@ -89,6 +89,10 @@
   #cleanReport summary { cursor: pointer; color: var(--accent-deep); }
   #cleanReportBody { max-height: 180px; overflow: auto; margin-top: 7px; padding: 8px; background: var(--paper); border-radius: 6px; }
   #cleanReportBody p { margin: 0 0 5px; line-height: 1.45; word-break: break-all; }
+  #excelOptions { margin-top: 12px; }
+  #excelOptions label { display: block; margin-bottom: 5px; color: var(--ink2); }
+  #excelOptions select { width: 100%; min-width: 0; }
+  #excelSummary { margin: 10px 0 0; }
 
   .opt { margin: 12px 0 0; font-size: 13.5px; }
   .opt > span { display: block; color: var(--ink2); font-size: 12.5px; margin-bottom: 5px; }
@@ -224,12 +228,19 @@
 <main>
   <aside>
     <section class="card" id="wbZone">
-      <h2>① 目标语词书 <small>.txt / .docx / .pdf</small></h2>
+      <h2>① 目标语词书 <small>.txt / .docx / .pdf / .xlsx / .xls</small></h2>
       <p class="hint sans">左侧写目标语，右侧写中文，如 <code>bonjour 你好</code>、<code>こんにちは 你好</code>、<code>사랑 爱</code><br>支持短语和词性标注；多语 TXT 建议使用 UTF-8 编码</p>
       <div class="filerow sans">
         <label class="btn-file" for="wbFile">选择词书…</label>
-        <input type="file" id="wbFile" accept=".txt,.docx,.pdf,text/plain">
-        <select id="wbEnc"><option value="utf-8">UTF-8</option><option value="gbk">GBK</option></select>
+        <input type="file" id="wbFile" accept=".txt,.docx,.pdf,.xlsx,.xls,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+        <select id="wbEnc" aria-label="词书文本编码"><option value="utf-8">UTF-8</option><option value="gbk">GBK</option></select>
+      </div>
+      <div id="excelOptions" class="sans" hidden>
+        <p class="hint">Excel 每行一个词条，需有单词和中文释义两列；可选择工作表和列，不读取其他列。仅在本机解析。</p>
+        <div class="opt"><label for="excelSheet">工作表</label><select id="excelSheet"></select></div>
+        <div class="opt"><label for="excelTarget">单词 / 目标语列</label><select id="excelTarget"></select></div>
+        <div class="opt"><label for="excelDefinition">中文释义列</label><select id="excelDefinition"></select></div>
+        <p id="excelSummary" class="hint" aria-live="polite"></p>
       </div>
       <p class="status sans" id="wbStatus">未加载</p>
       <details id="cleanReport" class="sans" hidden>
@@ -335,7 +346,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="core.js?v=20261010-6"></script>
-<script src="app.js?v=20261010-6"></script>
+<script src="vendor/xlsx.full.min.js?v=0.20.3"></script>
+<script src="core.js?v=20261010-7"></script>
+<script src="excel.js?v=20261010-7"></script>
+<script src="app.js?v=20261010-7"></script>
 </body>
 </html>

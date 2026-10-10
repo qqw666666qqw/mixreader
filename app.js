@@ -59,6 +59,7 @@ const state = {
   skipped: [],
   filtered: [],
   ambiguous: [],
+  excel: null,
 };
 
 function opts() {
@@ -207,11 +208,87 @@ async function loadPdf(file) {
 
 async function loadAnyFile(file, enc) {
   const name = file.name.toLowerCase();
+  if (/\.(xlsx|xls)$/.test(name)) throw new Error('Excel 请在“目标语词书”区域导入；中文书请使用 TXT、DOCX 或 PDF');
   if (name.endsWith('.docx')) return loadDocx(file);
   if (name.endsWith('.doc')) throw new Error('暂不支持旧版 .doc，请在 Word 中另存为 .docx 后再上传');
   if (name.endsWith('.pdf')) return loadPdf(file);
   return loadTxt(file, enc);
 }
+
+async function loadExcelWorkbook(file) {
+  if (!window.XLSX) throw new Error('Excel 解析组件未加载，请刷新后重试');
+  try {
+    const buffer = await file.arrayBuffer();
+    const signature = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength));
+    if (!(signature[0] === 0x50 && signature[1] === 0x4b) &&
+        !(signature[0] === 0xd0 && signature[1] === 0xcf)) throw new Error('不是 Excel 文件');
+    const workbook = XLSX.read(buffer, { type: 'array', dense: true });
+    if (!workbook.SheetNames.length) throw new Error('没有工作表');
+    return workbook;
+  } catch (err) {
+    throw new Error('无法读取 Excel，请确认文件有效且未加密，或重新另存为 .xlsx');
+  }
+}
+
+function selectExcelSheet() {
+  const excel = state.excel;
+  const sheet = excel.workbook.Sheets[$('excelSheet').value];
+  excel.rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '', blankrows: false });
+  excel.columns = suggestExcelColumns(excel.rows);
+  const width = excel.rows.reduce((max, row) => Math.max(max, row.length), 0);
+  const options = Array.from({ length: width }, (_, column) => {
+    const letter = XLSX.utils.encode_col(column);
+    const label = excel.columns.header[column] || excelCellText(excel.rows[0]?.[column]).slice(0, 30);
+    return `<option value="${column}">${letter} 列${label ? ' · ' + escapeHtml(label) : ''}</option>`;
+  }).join('');
+  $('excelTarget').innerHTML = options;
+  $('excelDefinition').innerHTML = '<option value="-1">请选择中文释义列</option>' + options;
+  $('excelTarget').value = String(excel.columns.target);
+  $('excelDefinition').value = String(excel.columns.definition);
+}
+
+function selectedExcelText() {
+  const excel = state.excel;
+  const result = excelRowsToWordbook(excel.rows, {
+    target: Number($('excelTarget').value),
+    definition: Number($('excelDefinition').value),
+    startRow: excel.columns.startRow,
+  });
+  if (!parseWordbook(result.text, { strict: false }).entries.length) {
+    throw new Error('所选列无法识别为词条，请检查单词列和中文释义列');
+  }
+  const headerNote = excel.columns.startRow ? '已跳过表头及前面的说明行。' : '未识别到表头，请核对列选择。';
+  $('excelSummary').textContent = `当前表读取 ${result.count} 行，跳过 ${result.skipped} 行空白或无中文释义的内容；${headerNote}`;
+  return result.text;
+}
+
+function updateExcelWordbook() {
+  if (!state.excel) return;
+  try {
+    state.wb = selectedExcelText();
+    state.wbName = state.excel.name;
+    $('wbStatus').textContent = `已加载：${state.wbName}`;
+    $('wbStatus').classList.remove('err');
+    $('wbZone').classList.add('ok');
+    generate();
+  } catch (err) {
+    state.wb = null;
+    state.res = null;
+    $('wbStatus').textContent = `解析失败：${err.message}`;
+    $('wbStatus').classList.add('err');
+    $('wbZone').classList.remove('ok');
+    $('excelSummary').textContent = '请调整上面的工作表或列选择。';
+    $('exportBtn').disabled = $('exportHtmlBtn').disabled = true;
+    $('page').innerHTML = '<div class="empty"><p>Excel 词书尚未就绪，请检查工作表和列选择。</p></div>';
+    $('vocab').innerHTML = '';
+    $('cleanReport').hidden = true;
+    $('chapterFooter').hidden = true;
+    $('statsText').textContent = '等待有效的 Excel 词书…';
+  }
+}
+
+$('excelSheet').addEventListener('change', () => { selectExcelSheet(); updateExcelWordbook(); });
+['excelTarget', 'excelDefinition'].forEach((id) => $(id).addEventListener('change', updateExcelWordbook));
 
 function renderRep(seg, mode) {
   const target = seg.target == null ? seg.en : seg.target;
@@ -305,11 +382,32 @@ function renderCleanReport(skipped, filtered, ambiguous) {
   const input = $(kind + 'File');
   const enc = $(kind + 'Enc');
   const status = $(kind + 'Status');
+  let importVersion = 0;
 
   async function handle(file) {
+    const version = ++importVersion;
+    status.textContent = `正在读取：${file.name}…`;
     try {
+      if (kind === 'wb' && /\.(xlsx|xls)$/i.test(file.name)) {
+        const workbook = await loadExcelWorkbook(file);
+        if (version !== importVersion) return;
+        state.excel = { workbook, name: file.name };
+        $('excelOptions').hidden = false;
+        $('wbEnc').hidden = true;
+        $('excelSheet').innerHTML = workbook.SheetNames.map((name) =>
+          `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+        $('excelSheet').value = workbook.SheetNames[0];
+        selectExcelSheet();
+        updateExcelWordbook();
+        return;
+      }
       const text = await loadAnyFile(file, enc.value);
-      if (kind === 'wb') { state.wb = text; state.wbName = file.name; }
+      if (version !== importVersion) return;
+      if (kind === 'wb') {
+        state.wb = text; state.wbName = file.name; state.excel = null;
+        $('excelOptions').hidden = true;
+        $('wbEnc').hidden = false;
+      }
       else {
         state.bk = text;
         state.bkName = file.name;
@@ -321,13 +419,14 @@ function renderCleanReport(skipped, filtered, ambiguous) {
       zone.classList.add('ok');
       generate();
     } catch (err) {
+      if (version !== importVersion) return;
       status.textContent = `解析失败：${err && err.message ? err.message : err}`;
       status.classList.add('err');
       zone.classList.remove('ok');
     }
   }
 
-  input.addEventListener('change', () => { if (input.files[0]) handle(input.files[0]); });
+  input.addEventListener('change', () => { if (input.files[0]) return handle(input.files[0]); });
   ['dragover', 'dragenter'].forEach((ev) =>
     zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('drag'); }));
   ['dragleave', 'drop'].forEach((ev) =>
@@ -376,6 +475,9 @@ $('directoryList').addEventListener('click', (e) => {
 });
 
 $('demoBtn').addEventListener('click', () => {
+  state.excel = null;
+  $('excelOptions').hidden = true;
+  $('wbEnc').hidden = false;
   state.wb = SAMPLE_WB; state.wbName = '示例词书';
   state.bk = SAMPLE_BK; state.bkName = '示例中文书';
   prepareBook();

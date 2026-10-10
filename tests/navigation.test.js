@@ -3,6 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const core = require('../core.js');
+const excel = require('../excel.js');
+const XLSX = require('../vendor/xlsx.full.min.js');
 
 function element() {
   const classes = new Set();
@@ -53,7 +55,7 @@ async function test() {
   get('density').value = '100';
   get('fontSize').value = '20';
   const context = vm.createContext({
-    ...core, document, window: {}, setTimeout,
+    ...core, ...excel, document, window: {}, setTimeout,
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8'), context);
 
@@ -82,6 +84,74 @@ async function test() {
     }) }),
   };
   assert.equal(await vm.runInContext("loadAnyFile(testFile, 'utf-8')", context), '第一章\n中文正文\n');
+
+  const rows = [
+    ['词书说明'],
+    ['序号', '英文单词', '音标', '中文释义', '例句'],
+    [1, 'friend', '/frend/', '朋友', 'a friend'],
+    [2, 'ice cream', '', '冰淇淋', 'unrelated 中文例句'],
+    [3, 'lonely', '', '', '孤独的例句，不是释义'],
+    [4, 'happy', '', '快乐的；高兴的', ''],
+  ];
+  assert.deepEqual(excel.suggestExcelColumns(rows), {
+    target: 1, definition: 3, startRow: 2, header: rows[1].map(String),
+  });
+  const converted = excel.excelRowsToWordbook(rows, excel.suggestExcelColumns(rows));
+  assert.equal(converted.count, 3);
+  assert.equal(converted.skipped, 1);
+  assert.equal(core.parseWordbook(converted.text).dict.get('冰淇淋'), 'ice cream');
+  assert.ok(!converted.text.includes('例句'));
+  assert.deepEqual(excel.suggestExcelColumns([['你好', 'bonjour'], ['苹果', 'apple']]), {
+    target: 1, definition: 0, startRow: 0, header: [],
+  });
+  assert.equal(excel.excelRowsToWordbook([['ice\ncream', '冰淇淋\n甜点']], {
+    target: 0, definition: 1,
+  }).text, 'ice cream\t冰淇淋 甜点');
+  assert.throws(() => excel.excelRowsToWordbook([['apple']], { target: 0, definition: -1 }), /只有英文/);
+  assert.throws(() => excel.excelRowsToWordbook([['apple', 'fruit']], { target: 0, definition: 1 }), /没有有效/);
+  assert.throws(() => excel.excelRowsToWordbook([], { target: 0, definition: 1 }), /没有有效/);
+  assert.throws(() => excel.excelRowsToWordbook(rows, { target: 1, definition: 1 }), /不同/);
+
+  context.window.XLSX = context.XLSX = XLSX;
+  for (const bookType of ['xlsx', 'biff8']) {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), '词书');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ['中文释义', '单词'], ['河流', 'river'], ['月亮', 'moon'],
+    ]), '第二表');
+    const bytes = XLSX.write(workbook, { type: 'buffer', bookType });
+    get('wbFile').files = [{
+      name: bookType === 'xlsx' ? 'wordbook.xlsx' : 'wordbook.xls',
+      arrayBuffer: async () => Uint8Array.from(bytes).buffer,
+    }];
+    await get('wbFile').handlers.change();
+    assert.equal(get('excelOptions').hidden, false);
+    assert.equal(get('wbEnc').hidden, true);
+    assert.equal(get('excelTarget').value, '1');
+    assert.equal(get('excelDefinition').value, '3');
+    assert.match(get('excelSummary').textContent, /读取 3 行/);
+    assert.equal(vm.runInContext('parseWordbook(state.wb).dict.get("朋友")', context), 'friend');
+    get('excelSheet').value = '第二表';
+    get('excelSheet').handlers.change();
+    assert.equal(vm.runInContext('parseWordbook(state.wb).dict.get("河流")', context), 'river');
+    assert.equal(vm.runInContext('parseWordbook(state.wb).dict.has("朋友")', context), false);
+    get('excelTarget').value = get('excelDefinition').value;
+    get('excelTarget').handlers.change();
+    assert.match(get('wbStatus').textContent, /请选择不同/);
+    assert.equal(vm.runInContext('state.wb', context), null);
+    assert.equal(get('exportBtn').disabled, true);
+  }
+  get('wbFile').files = [utf8File];
+  await get('wbFile').handlers.change();
+  assert.equal(get('excelOptions').hidden, true);
+  assert.equal(get('wbEnc').hidden, false);
+  context.testFile = { name: 'book.xlsx' };
+  await assert.rejects(vm.runInContext("loadAnyFile(testFile, 'utf-8')", context), /目标语词书/);
+  context.testFile = utf8File;
+  await assert.rejects(vm.runInContext('loadExcelWorkbook(testFile)', context), /文件有效且未加密/);
+  context.window.XLSX = null;
+  await assert.rejects(vm.runInContext('loadExcelWorkbook(testFile)', context), /组件未加载/);
+  context.window.XLSX = XLSX;
 
   get('demoBtn').handlers.click();
   assert.equal(get('chapterFooter').hidden, false);
@@ -134,7 +204,7 @@ async function test() {
   });
   assert.match(exportedGet('page').innerHTML, /第一章 清晨/);
   assert.equal(exportedGet('chapterDirectory').open, false);
-  console.log('TXT import, DOCX/PDF integration mocks, chapter footer and exported reader tests passed.');
+  console.log('Real XLSX/XLS import and column selection, TXT import, DOCX/PDF integration mocks, chapter footer and exported reader tests passed.');
 }
 
 test().catch((error) => {
