@@ -1,0 +1,72 @@
+:root {
+  --paper: #eff8f3;
+  --card: #fffefb;
+  --ink: #233f36;
+  --ink2: #60776c;
+  --line: #cdded4;
+  --accent: #984459;
+  --accent-deep: #984459;
+  --accent-soft: #fbeef0;
+  --ok: #315d4c;
+  --mint: #c9e8da;
+  --pink: #f1c5ce;
+}
+
+body {
+  background:
+    radial-gradient(1100px 520px at 88% -8%, var(--accent-soft) 0%, transparent 60%),
+    radial-gradient(900px 480px at -8% 108%, var(--mint) 0%, transparent 55%),
+    var(--paper);
+}
+
+.seal {
+  color: var(--ok);
+  background: var(--mint);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.card, #page {
+  border-radius: 9px;
+  box-shadow: 0 8px 24px rgba(49, 93, 76, .04);
+}
+
+.btn-file {
+  background: var(--mint);
+  color: var(--ok);
+}
+
+.btn-file:hover { background: #b6dccb; }
+.card.drag { background: var(--accent-soft); }
+
+#demoBtn {
+  background: var(--pink);
+  color: var(--accent-deep);
+}
+
+#demoBtn:hover { background: #e8afbd; }
+#openDirectory { background: var(--accent-soft); }
+.chip { background: var(--accent-soft); border-color: transparent; }
+.empty .big { color: var(--mint); }
+.directory-dialog::backdrop { background: rgba(35, 63, 54, .4); }
+
+.theme-label {
+  display: inline-block;
+  padding: 2px 9px;
+  margin-left: 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font: 12px "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+
+@media (max-width: 520px) {
+  header h1 small { display: block; margin: 2px 0 0; }
+  .theme-label { margin-left: 0; margin-top: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, #reader { animation: none; }
+}

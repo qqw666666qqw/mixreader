@@ -14,6 +14,8 @@
 
 打开后点「载入示例」即可体验，无需准备文件。
 
+薄荷绿 / 粉红配色版本：<https://qqw666666qqw.github.io/mixreader/mint/>。原网址保持米色 / 砖红配色，两版共用导入和阅读功能，均免费、无需登录。导出的阅读包目前仍使用原版米色配色。
+
 在较新的 Safari、Chrome、Edge 或 Firefox 中使用。电脑、Android 手机、iPhone 和 iPad 都可以通过文件选择器导入各自设备上的词书和中文书；iPhone/iPad 可从“文件”或 iCloud Drive 选择。微信等应用的内置浏览器如无法选文件，请在系统浏览器打开。
 
 导入文件只在当前浏览器处理，不会上传到 GitHub，也不会跨设备同步。刷新页面需要重新导入；手机处理超大 PDF/DOCX 时可能受内存限制，建议在电脑处理后导出阅读包。扫描图片 PDF 暂不支持 OCR。
@@ -23,6 +25,8 @@
 GitHub Pages 从 `main` 分支根目录发布，地址为上述在线体验链接。后续推送到 `main` 的代码会自动重新部署，不需要本机保持开机。`.nojekyll` 用于直接发布静态文件。
 
 发布仓库中仅包含网页代码和自带示例；不要把私人书籍加入公开仓库。
+
+修改原版 `index.html` 的控件或资源后，运行 `node scripts/build-mint.js` 同步生成薄荷粉页面，再运行 `node scripts/build-mint.js --check` 检查。`mint/theme.css` 只覆盖第二版的配色，不影响原版。
 
 ## 功能特性
 
