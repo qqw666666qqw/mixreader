@@ -3,11 +3,11 @@ function createReaderStore(indexedDB) {
   let database;
   const ready = new Promise((resolve, reject) => {
     if (!indexedDB) { reject(new Error('当前浏览器无法保存书籍，请不要使用无痕模式')); return; }
-    const request = indexedDB.open('jiadu-personal-reader', 1);
+    const request = indexedDB.open('jiadu-personal-reader', 2);
     request.onupgradeneeded = () => {
       const db = request.result;
-      for (const name of ['books', 'wordbooks', 'sessions', 'meta']) {
-        db.createObjectStore(name, { keyPath: 'id' });
+      for (const name of ['books', 'wordbooks', 'sessions', 'meta', 'deletedBooks']) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' });
       }
     };
     request.onsuccess = () => {
@@ -38,12 +38,37 @@ function createReaderStore(indexedDB) {
       const request = tx.objectStore(name).getAll();
       request.onsuccess = () => done(request.result);
     }),
-    write: records => transaction(Object.keys(records), 'readwrite', tx => {
-      for (const [name, items] of Object.entries(records)) {
-        for (const item of items) tx.objectStore(name).put(item);
+    write: (records, { reviveBooks = false } = {}) => transaction([...new Set([...Object.keys(records), 'deletedBooks'])], 'readwrite', (tx, done) => {
+      const deletions = tx.objectStore('deletedBooks');
+      const revived = new Set(reviveBooks ? (records.books || []).map(book => book.id) : []);
+      const ids = [...new Set([
+        ...(records.books || []).map(book => book.id),
+        ...(records.sessions || []).map(session => session.id),
+        ...(records.meta || []).map(meta => meta.bookId).filter(Boolean),
+      ])].filter(id => !revived.has(id));
+      const deletedBookIds = [];
+      let remaining = ids.length;
+      function write() {
+        // Tombstones stop old tabs and queued autosaves from recreating a deleted book.
+        if (!deletedBookIds.length) {
+          for (const id of revived) deletions.delete(id);
+          for (const [name, items] of Object.entries(records)) {
+            for (const item of items) tx.objectStore(name).put(item);
+          }
+        }
+        done({ deletedBookIds });
+      }
+      if (!remaining) write();
+      for (const id of ids) {
+        const request = deletions.get(id);
+        request.onsuccess = () => {
+          if (request.result) deletedBookIds.push(id);
+          if (--remaining === 0) write();
+        };
       }
     }),
-    deleteBook: id => transaction(['books', 'sessions', 'meta'], 'readwrite', tx => {
+    deleteBook: id => transaction(['books', 'sessions', 'meta', 'deletedBooks'], 'readwrite', tx => {
+      tx.objectStore('deletedBooks').put({ id, deletedAt: Date.now() });
       tx.objectStore('books').delete(id);
       tx.objectStore('sessions').delete(id);
       const request = tx.objectStore('meta').get('current');

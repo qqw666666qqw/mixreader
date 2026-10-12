@@ -498,7 +498,7 @@ $('demoBtn').addEventListener('click', () => {
   $('bkZone').classList.add('ok');
   $('bkStatus').textContent = `已加载：示例中文书（${SAMPLE_BK.length.toLocaleString()} 字 · ${state.chapters.length} 章）`;
   generate();
-  window.readerMemory?.changed('all');
+  window.readerMemory?.changed('all', undefined, { reviveBooks: true });
 });
 
 async function transformAllChapters(o, onProgress) {

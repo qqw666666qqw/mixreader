@@ -8,6 +8,9 @@
   let bookId = null, wordbookId = null, loading = true, revision = 0;
   let queue = Promise.resolve(), timer, restoringPosition = false;
   let storageFailed = false;
+  let deleting = false, libraryRevision = 0;
+  let libraryBooks = [];
+  const libraryChannel = typeof window.BroadcastChannel === 'function' ? new window.BroadcastChannel('jiadu-library') : null;
   let backupUrl;
   let lastReadingAnchor, anchorBook, anchorChapter;
   const settingsIds = ['notesMode', 'minLen', 'density', 'fontSize', 'wbEnc', 'bkEnc', 'speechLang', 'speechVoice', 'speechRate', 'speechEngine'];
@@ -126,13 +129,37 @@
     };
   }
 
+  function updateLibraryActions() {
+    const selected = libraryBooks.find(book => book.id === $('savedBooks').value);
+    $('openSavedBook').disabled = $('deleteSavedBook').disabled = deleting || !selected;
+    $('savedBookInfo').textContent = selected
+      ? `${selected.name} · ${selected.text.length.toLocaleString()} 字 · 记录 ${selected.id.slice(-8)}`
+      : `共 ${libraryBooks.length} 本中文书；请先选择要继续阅读或删除的书籍。`;
+  }
+
   async function refreshLibrary() {
+    const version = ++libraryRevision;
     const books = await store.all('books');
+    if (version !== libraryRevision) return;
+    libraryBooks = books;
     books.sort((a, b) => b.updatedAt - a.updatedAt);
+    const selected = $('savedBooks').value;
     $('savedBooks').innerHTML = '<option value="">选择已保存的书籍</option>' + books.map(book =>
-      `<option value="${escapeHtml(book.id)}">${escapeHtml(book.name)}</option>`).join('');
-    $('savedBooks').value = bookId || '';
-    $('openSavedBook').disabled = $('deleteSavedBook').disabled = !books.length;
+      `<option value="${escapeHtml(book.id)}">${escapeHtml(book.name)} · ${book.text.length.toLocaleString()} 字 · ${Number.isFinite(book.updatedAt) ? new Date(book.updatedAt).toLocaleString() : '历史记录'} · ${book.id.slice(-8)}</option>`).join('');
+    $('savedBooks').value = books.some(book => book.id === selected) ? selected
+      : books.some(book => book.id === bookId) ? bookId : '';
+    updateLibraryActions();
+  }
+
+  function clearCurrentBook() {
+    bookId = null; state.bk = null; state.bkName = ''; state.res = null; state.chapters = []; state.chapterIndex = 0;
+    lastReadingAnchor = null; anchorBook = null; anchorChapter = null;
+    $('bkFile').value = '';
+    $('bkStatus').textContent = '已删除，请导入中文书'; $('bkZone').classList.remove('ok');
+    $('page').innerHTML = '<div class="empty"><p>请导入中文书，或选择其他已保存的书籍。</p></div>';
+    $('vocab').innerHTML = ''; $('statsText').textContent = '等待中文书…';
+    $('exportBtn').disabled = $('exportHtmlBtn').disabled = true;
+    window.readerSpeech.stop(); renderChapterNav();
   }
 
   function enqueue(task) {
@@ -143,7 +170,7 @@
     return queue;
   }
 
-  function changed(kind, anchor) {
+  function changed(kind, anchor, { reviveBooks = kind === 'book' } = {}) {
     revision++;
     if (loading) return;
     if (storageFailed && ['all', 'book', 'wordbook'].includes(kind)) kind = 'all';
@@ -170,7 +197,13 @@
       }
       records.meta.push({ id: 'current', bookId, wordbookId, settings: snapshot.settings, updatedAt: now });
       if (bookId && snapshot.bk != null) records.sessions.push({ id: bookId, wordbookId, chapter: snapshot.chapter, anchor: snapshot.anchor, settings: snapshot.settings, updatedAt: now });
-      await store.write(records);
+      const result = await store.write(records, { reviveBooks });
+      if (result?.deletedBookIds?.length) {
+        if (state.bk === snapshot.bk) clearCurrentBook();
+        await refreshLibrary();
+        status('这本书已被删除，已停止旧页面自动保存；如需恢复，请重新导入原文件。');
+        return;
+      }
       storageFailed = false;
       if (content) await refreshLibrary();
       status(`已保存到本机${bookId ? ' · 第 ' + (snapshot.chapter + 1) + ' 章' : ''}；下次用同一浏览器打开可恢复。`);
@@ -202,7 +235,7 @@
     if (!book) throw new Error('该书籍已不存在，请重新导入');
     const wbId = session?.wordbookId || meta?.wordbookId;
     const wordbook = wbId ? await store.get('wordbooks', wbId) : null;
-    if (initial && revision !== version) return;
+    if (revision !== version || deleting) return;
     bookId = book.id; wordbookId = wordbook?.id || null;
     state.bk = book.text; state.bkName = book.name;
     state.wb = wordbook?.text ?? null; state.wbName = wordbook?.name || '';
@@ -222,6 +255,7 @@
       $('statsText').textContent = '等待词书…'; renderChapterNav();
     }
     $('savedBooks').value = bookId;
+    updateLibraryActions();
     status(`已恢复本机书籍与进度 · 第 ${state.chapterIndex + 1} 章`);
     restorePosition(session?.anchor || { view: 'reader', offset: 0, y: 70 });
     if (!initial) changed('progress', session?.anchor || { view: 'reader', offset: 0, y: 70 });
@@ -270,25 +304,48 @@
   ['speechLang', 'speechVoice', 'speechRate', 'speakOnWord', 'speechEngine', 'allowNetworkSpeech'].forEach(id => $(id).addEventListener('change', () => changed('settings')));
 
   $('openSavedBook').addEventListener('click', async () => {
+    const id = $('savedBooks').value;
+    if (!id || deleting) return;
     try {
       await ready; await changed('progress');
-      if ($('savedBooks').value) await openBook($('savedBooks').value);
+      await openBook(id);
     } catch (error) { status(error.message, true); }
   });
   $('deleteSavedBook').addEventListener('click', async () => {
     const id = $('savedBooks').value;
-    if (!id || !window.confirm('删除所选中文书及其阅读进度？对应词书会保留，建议先备份。')) return;
+    const selected = libraryBooks.find(book => book.id === id);
+    if (!selected || deleting || !window.confirm(`删除“${selected.name}”（${selected.text.length.toLocaleString()} 字，记录 ${id.slice(-8)}）及其阅读进度？仅删除这一条，其他书籍和词书保留。`)) return;
+    deleting = true; revision++;
+    clearTimeout(timer);
+    $('deleteSavedBook').textContent = '正在删除…';
+    updateLibraryActions();
     try {
-      await ready; await queue; await store.deleteBook(id);
-      if (bookId === id) {
-        bookId = null; state.bk = null; state.bkName = ''; state.res = null; state.chapters = [];
-        $('bkStatus').textContent = '已删除，请导入中文书'; $('bkZone').classList.remove('ok');
-        $('page').innerHTML = '<div class="empty"><p>请导入中文书，或选择其他已保存的书籍。</p></div>';
-        $('vocab').innerHTML = ''; $('statsText').textContent = '等待中文书…';
-        $('exportBtn').disabled = $('exportHtmlBtn').disabled = true; renderChapterNav();
-      }
-      await refreshLibrary(); status('已删除所选中文书及进度。');
-    } catch (error) { status(`删除失败：${error.message}`, true); }
+      await ready;
+      // Append deletion to the same queue as saves; later stale saves are blocked by the store.
+      const operation = queue.then(async () => {
+        await store.deleteBook(id);
+        if (state.bk === selected.text) clearCurrentBook();
+        libraryChannel?.postMessage({ type: 'deleted', id });
+        if (backupUrl) { URL.revokeObjectURL(backupUrl); backupUrl = null; $('backupDownload').hidden = true; }
+        await refreshLibrary();
+        if (libraryBooks.some(book => book.id === id)) throw new Error('书库仍包含该记录，请重试');
+      });
+      queue = operation.catch(() => {});
+      await operation;
+      status(`已删除“${selected.name}”（记录 ${id.slice(-8)}）及进度；剩余 ${libraryBooks.length} 本中文书。同名的其他记录不会一并删除。`);
+    } catch (error) { status(`删除失败：${error.message}。请刷新页面后重试，不必清除全部网站数据。`, true); }
+    finally {
+      deleting = false; $('deleteSavedBook').textContent = '删除所选书'; updateLibraryActions();
+    }
+  });
+  $('savedBooks').addEventListener('change', updateLibraryActions);
+  libraryChannel?.addEventListener('message', async event => {
+    if (event.data?.type !== 'deleted' || typeof event.data.id !== 'string') return;
+    revision++;
+    if (bookId === event.data.id) {
+      clearCurrentBook(); status('这本书已在另一个夹读页面删除，已停止阅读与自动保存。');
+    }
+    try { await refreshLibrary(); } catch (error) { status(`书库刷新失败：${error.message}`, true); }
   });
   $('persistStorage').addEventListener('click', async () => {
     try {
@@ -338,7 +395,7 @@
       const records = validateReaderBackup(JSON.parse(await file.text()));
       if (!window.confirm(`恢复 ${records.books.length} 本中文书和 ${records.wordbooks.length} 份词书？同一内容的已有进度会由备份覆盖，其他书籍保留。`)) return;
       await ready; await queue;
-      await store.write(records); await refreshLibrary();
+      await store.write(records, { reviveBooks: true }); await refreshLibrary();
       const meta = records.meta.find(item => item.id === 'current');
       if (meta?.bookId) await openBook(meta.bookId);
       else if (meta?.wordbookId) {
