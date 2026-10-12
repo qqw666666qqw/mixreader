@@ -13,6 +13,7 @@
   const libraryChannel = typeof window.BroadcastChannel === 'function' ? new window.BroadcastChannel('jiadu-library') : null;
   let backupUrl;
   let lastReadingAnchor, anchorBook, anchorChapter;
+  let notebookOpen = false, notebookAnchor;
   const settingsIds = ['notesMode', 'minLen', 'density', 'fontSize', 'wbEnc', 'bkEnc', 'speechLang', 'speechVoice', 'speechRate', 'speechEngine'];
   const checkIds = ['strictMode', 'speakOnWord', 'allowNetworkSpeech'];
   window.readerSpeech = createReaderSpeech(window, {
@@ -67,6 +68,7 @@
   }
 
   function capture() {
+    if (notebookOpen) return notebookAnchor || { view: 'top', offset: 0 };
     if (!state.bk || !state.res) return { view: 'top', offset: 0 };
     if (anchorBook !== state.bk || anchorChapter !== state.chapterIndex) {
       lastReadingAnchor = null; anchorBook = state.bk; anchorChapter = state.chapterIndex;
@@ -101,6 +103,7 @@
 
   function restorePosition(anchor) {
     if (!anchor) return;
+    if (notebookOpen) { notebookAnchor = anchor; return; }
     anchorBook = state.bk; anchorChapter = state.chapterIndex;
     if (anchor.view === 'reader') lastReadingAnchor = anchor;
     restoringPosition = true;
@@ -261,7 +264,9 @@
     if (!initial) changed('progress', session?.anchor || { view: 'reader', offset: 0, y: 70 });
   }
 
-  window.readerMemory = { changed, capture, restorePosition };
+  window.readerMemory = { changed, capture, restorePosition, store,
+    setNotebookOpen(value) { if (value) notebookAnchor = capture(); notebookOpen = value; },
+  };
   const ready = (async () => {
     try {
       await store.ready;
@@ -293,7 +298,7 @@
   window.readerMemory.ready = ready;
 
   window.addEventListener('scroll', () => {
-    if (loading || restoringPosition || !state.bk) return;
+    if (loading || restoringPosition || notebookOpen || !state.bk) return;
     clearTimeout(timer);
     timer = setTimeout(() => changed('progress'), 400);
   }, { passive: true });
@@ -357,11 +362,11 @@
     try {
       await ready; await changed('all'); await queue;
       const data = { format: 'jiadu-backup', version: 1, createdAt: new Date().toISOString() };
-      for (const name of ['books', 'wordbooks', 'sessions', 'meta']) {
+      for (const name of ['books', 'wordbooks', 'sessions', 'meta', 'vocabulary']) {
         try { data[name] = await store.all(name); }
         catch (error) { data[name] = []; }
       }
-      if (!state.bk && !state.wb && !data.books.length && !data.wordbooks.length) throw new Error('没有可备份的书籍');
+      if (!state.bk && !state.wb && !data.books.length && !data.wordbooks.length && !data.vocabulary.length) throw new Error('没有可备份的书籍或生词');
       let currentWbId = null;
       if (state.wb != null) {
         const excel = excelSnapshot();
@@ -393,9 +398,10 @@
     if (!file) return;
     try {
       const records = validateReaderBackup(JSON.parse(await file.text()));
-      if (!window.confirm(`恢复 ${records.books.length} 本中文书和 ${records.wordbooks.length} 份词书？同一内容的已有进度会由备份覆盖，其他书籍保留。`)) return;
+      if (!window.confirm(`恢复 ${records.books.length} 本中文书、${records.wordbooks.length} 份词书和 ${records.vocabulary?.length || 0} 个生词？同一内容的已有进度会由备份覆盖，其他内容保留。`)) return;
       await ready; await queue;
       await store.write(records, { reviveBooks: true }); await refreshLibrary();
+      await window.readerVocabulary?.refresh();
       const meta = records.meta.find(item => item.id === 'current');
       if (meta?.bookId) await openBook(meta.bookId);
       else if (meta?.wordbookId) {

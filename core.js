@@ -3,6 +3,16 @@
 
 const HAN = /[\u3400-\u9fff]/;
 const POS_TAIL = /\s+(?:(?:n|v|vt|vi|adj|adv|prep|pron|conj|num|art|aux|int|interj|phr|phrase|det|modal|m|f|mf|pl|sg|noun|verb|adjective|adverb)(?:\.[a-z]+)*\.?\s*(?:[/&,]\s*)?)+$/i;
+const POS_NAMES = { noun: 'n', verb: 'v', adjective: 'adj', adverb: 'adv', '名词': 'n', '动词': 'v', '形容词': 'adj', '副词': 'adv', '介词': 'prep', '代词': 'pron', '连词': 'conj' };
+
+function wordbookPos(text) {
+  const cleaned = String(text).replace(/\[[^\]]*\]|\/[^/]+\//g, ' ');
+  const labels = [...cleaned.matchAll(/(?:^|[\s,;；&/()（）])((?:n|v|vt|vi|adj|adv|prep|pron|conj|num|art|aux|int|interj|phr|det|modal|noun|verb|adjective|adverb)\.?|名词|动词|形容词|副词|介词|代词|连词)(?=$|[\s.,;；&/()（）])/gi)];
+  return [...new Set(labels.map(match => {
+    const value = match[1].toLowerCase().replace(/\.$/, '');
+    return (POS_NAMES[value] || value) + '.';
+  }))].join(' / ');
+}
 const RISKY_SINGLE = new Set('的一是在有把被和与或及为于从向对将着过之其而但又也都很更最各每某上下里外中内前后存取交数目质病');
 
 function cleanTarget(raw) {
@@ -42,7 +52,8 @@ function splitEntry(line) {
   if (definitionStart < 0) return null;
   const target = cleanTarget(line.slice(0, definitionStart));
   if (!target || target.length > 120 || !/\p{L}/u.test(target)) return null;
-  return { target, definition: line.slice(definitionStart) };
+  const prefix = line.slice(0, definitionStart);
+  return { target, definition: line.slice(definitionStart), pos: wordbookPos(prefix.slice(prefix.indexOf(target) + target.length)) };
 }
 
 function detectScript(target) {
@@ -136,13 +147,14 @@ function parseWordbook(text, opts = {}) {
         filtered.push({ line: candidate.line, reason: `高风险单字释义：${zh}` });
         continue;
       }
-      extracted.push({ target, en: target, zh });
+      const details = { meaning: definition.trim(), pos: candidate.pos };
+      extracted.push({ target, en: target, zh, ...details });
       if (!termTargets.has(zh)) termTargets.set(zh, new Set());
       termTargets.get(zh).add(target);
       // "快乐的" style definitions: also index the bare form "快乐".
       const bare = zh.replace(/[的地得]+$/, '');
       if (bare && bare !== zh) {
-        extracted.push({ target, en: target, zh: bare });
+        extracted.push({ target, en: target, zh: bare, ...details });
         if (!termTargets.has(bare)) termTargets.set(bare, new Set());
         termTargets.get(bare).add(target);
       }
@@ -238,5 +250,5 @@ function fmtText(seg, mode) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { parseWordbook, transform, fmtText };
+  module.exports = { parseWordbook, transform, fmtText, wordbookPos };
 }

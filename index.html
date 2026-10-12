@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<link rel="stylesheet" href="notebook.css?v=20261012-4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>夹读 · 多语混读阅读器</title>
 <style>
@@ -256,6 +257,7 @@
       </div>
       <input type="file" id="backupFile" accept=".json,application/json">
       <p class="hint"><a id="backupDownload" hidden download="夹读书库备份.json">点击下载备份文件</a></p>
+      <button type="button" id="openNotebook" class="nb-entry">生词本 · <span id="notebookCount">0</span> 个词</button>
     </section>
     <section class="card" id="wbZone">
       <h2>① 目标语词书 <small>.txt / .docx / .pdf / .xlsx / .xls</small></h2>
@@ -380,8 +382,28 @@
       <button id="openDirectory" type="button" aria-haspopup="dialog">目录</button>
       <button id="nextChapterBottom" type="button">下一章</button>
     </nav>
+    <button type="button" id="openNotebookBottom" class="nb-entry-link">打开生词本</button>
   </section>
 </main>
+<section id="notebookView" hidden aria-labelledby="notebookTitle">
+  <div class="nb-top"><button type="button" data-return-reading>← 返回阅读</button><span class="nb-brand">夹读</span></div>
+  <div class="nb-hero"><span class="nb-eyebrow">MY WORDS / 我的词汇</span><h1 id="notebookTitle">生词本<span class="nb-mark" aria-hidden="true">词</span></h1><p>把不认识的词，留给下一次相遇。</p><div class="nb-hero-bottom"><span class="nb-count"><strong id="notebookTotal">0</strong> 个生词</span><button type="button" id="exportNotebook" class="nb-export">↓ 导出 Excel</button></div></div>
+  <div class="nb-toolbar"><label class="nb-search"><span aria-hidden="true">⌕</span><input id="notebookSearch" type="search" aria-label="搜索生词或中文释义" placeholder="搜索单词或中文释义"></label><button type="button" id="manageNotebook" class="nb-manage" aria-pressed="false">管理</button></div>
+  <div class="nb-list-heading"><span id="notebookCaption">全部生词</span><span>点右侧听发音</span></div>
+  <ul id="notebookList" class="nb-list" aria-label="已收藏生词"></ul>
+  <div id="notebookEmpty" class="nb-empty" hidden><h2>这里还没有词</h2><p>回到阅读页，点击词条加入生词本。</p><button type="button" data-return-reading class="nb-collect">去阅读</button></div>
+  <p id="notebookNoResults" class="nb-note" hidden>没有找到这个词，试试其他关键词。</p>
+  <p id="notebookStatus" class="nb-status" role="status"></p>
+  <p class="nb-note">保存在当前浏览器 · 两种配色共用<br>清理网站数据可能丢失，请导出或备份</p>
+  <nav class="nb-nav" aria-label="生词本导航"><button type="button" data-return-reading>阅读</button><button type="button" aria-current="page">生词本</button></nav>
+</section>
+<dialog id="vocabularyDialog" aria-labelledby="collectTerm">
+  <div class="nb-handle" aria-hidden="true"></div><button type="button" id="closeVocabularyDialog" class="nb-close" aria-label="关闭生词词条">×</button><span class="nb-eyebrow">来自你的词书</span>
+  <div class="nb-dialog-row"><h2 id="collectTerm"></h2><button type="button" id="speakCollectTerm" class="nb-speak">发音</button></div>
+  <div class="nb-definition"><span id="collectPos"></span><p id="collectMeaning" class="nb-meaning"></p></div>
+  <button type="button" id="collectVocabulary" class="nb-collect">加入生词本</button><p id="collectStatus" class="nb-dialog-status" role="status"></p>
+</dialog>
+<div id="notebookToast" class="nb-toast" role="status" hidden></div>
 <dialog id="chapterDirectory" class="directory-dialog sans" aria-labelledby="directoryTitle">
   <div class="directory-heading">
     <h2 id="directoryTitle">章节目录</h2>
@@ -401,11 +423,13 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js?v=0.20.3"></script>
-<script src="core.js?v=20261012-1"></script>
-<script src="excel.js?v=20261012-1"></script>
-<script src="storage.js?v=20261012-3"></script>
+<script src="core.js?v=20261012-4"></script>
+<script src="excel.js?v=20261012-4"></script>
+<script src="vocabulary.js?v=20261012-4"></script>
+<script src="storage.js?v=20261012-4"></script>
 <script src="speech.js?v=20261012-2"></script>
-<script src="app.js?v=20261012-3"></script>
-<script src="memory.js?v=20261012-3"></script>
+<script src="app.js?v=20261012-4"></script>
+<script src="memory.js?v=20261012-4"></script>
+<script src="notebook.js?v=20261012-4"></script>
 </body>
 </html>

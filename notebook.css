@@ -1,0 +1,56 @@
+body.notebook-open > header, body.notebook-open > main { display: none; }
+body.notebook-open { background: radial-gradient(ellipse at 100% 0%, var(--accent-soft), transparent 50%), var(--paper); }
+#notebookView { max-width: 480px; min-height: 100svh; margin: 0 auto; padding: 0 22px 112px; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+.nb-top { height: 78px; display: flex; align-items: center; justify-content: space-between; }
+.nb-top button { flex: none; min-height: 44px; padding: 8px 0; border: 0; background: none; font-size: 13px; color: var(--ink); }
+.nb-brand { font: 18px Georgia, "Songti SC", serif; letter-spacing: 2px; }
+.nb-hero { padding: 17px 0 24px; border-bottom: 1px solid var(--line); }
+.nb-eyebrow { font-size: 9px; letter-spacing: 1.5px; color: var(--ink2); }
+.nb-hero h1 { display: flex; align-items: center; gap: 13px; font: 500 42px Georgia, "Songti SC", serif; letter-spacing: 3px; margin: 12px 0 14px; }
+.nb-mark { display: grid; place-items: center; width: 34px; height: 34px; font-size: 17px; border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); transform: rotate(7deg); background: var(--accent-soft); }
+.nb-hero p { margin: 0; font-size: 13px; color: var(--ink2); }
+.nb-hero-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 25px; }
+.nb-count { font-size: 12px; color: var(--ink2); }
+.nb-count strong { font: 30px Georgia, serif; color: var(--ink); margin-right: 7px; }
+.nb-export { flex: none; min-height: 44px; padding: 0 15px; border: 1px solid var(--line); border-radius: 10px; color: var(--accent-deep); background: var(--pink, var(--accent-soft)); font-size: 12px; }
+.nb-export:disabled { opacity: .45; }
+.nb-toolbar { display: flex; align-items: center; gap: 16px; margin: 23px 0 20px; }
+.nb-search { display: flex; align-items: center; flex: 1; min-width: 0; gap: 8px; padding: 0 12px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.nb-search input { width: 100%; min-width: 0; padding: 12px 0; border: 0; background: transparent; color: var(--ink); font: 13px "PingFang SC", sans-serif; }
+.nb-search input:focus { outline: none; }
+.nb-search:focus-within { outline: 2px solid var(--accent); }
+.nb-manage { flex: none; min-height: 44px; padding: 0; border: 0; background: none; font-size: 13px; color: var(--ink2); }
+.nb-list-heading { display: flex; justify-content: space-between; margin: 0 2px 11px; font-size: 11px; color: var(--ink2); }
+.nb-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.nb-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 91px; padding: 15px 16px 14px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 13px; }
+.nb-card > div { min-width: 0; }
+.nb-word { margin: 0 0 7px; font: 500 25px Georgia, "Songti SC", serif; overflow-wrap: anywhere; }
+.nb-definition { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 8px; }
+.nb-meaning { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink2); overflow-wrap: anywhere; white-space: pre-wrap; }
+.nb-pos { display: inline-block; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--mint, #eaf0e6); color: var(--ok); font: 10px/1.5 "PingFang SC", sans-serif; }
+.nb-pos[data-pos="v."] { color: #866641; background: #f5eedf; }
+.nb-pos[data-pos="adj."] { color: var(--accent); background: var(--accent-soft); }
+.nb-speak, .nb-remove { flex: none; min-width: 48px; min-height: 48px; padding: 5px; border: 1px solid var(--line); border-radius: 11px; background: var(--accent-soft); color: var(--accent-deep); font: 11px "PingFang SC", sans-serif; }
+.nb-icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+.nb-speak { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.nb-empty { padding: 42px 0; text-align: center; }
+.nb-empty h2 { font: 22px Georgia, "Songti SC", serif; }
+.nb-empty p, .nb-note { color: var(--ink2); font-size: 12px; line-height: 1.8; }
+.nb-note { margin: 24px 0; text-align: center; }
+.nb-status { margin: 13px 0; font-size: 12px; line-height: 1.6; color: var(--ink2); }
+.nb-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; width: 100%; max-width: 480px; padding: 10px 22px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--card); border-top: 1px solid var(--line); }
+.nb-nav button { min-height: 48px; padding: 10px; font-size: 12px; color: var(--ink2); background: none; }
+.nb-nav button:last-child { background: var(--mint, var(--accent-soft)); color: var(--ink); }
+.nb-entry { display: block; width: 100%; margin-top: 10px; min-height: 44px; background: var(--accent-soft); color: var(--accent-deep); border-color: var(--line); font-size: 13px; }
+.nb-entry-link { margin-top: 18px; background: var(--accent-soft); color: var(--accent-deep); border-color: var(--line); min-height: 44px; font-size: 13px; }
+#vocabularyDialog { position: fixed; top: auto; bottom: 0; width: min(480px, 100%); max-height: 80svh; margin: auto auto 0; padding: 34px 26px calc(26px + env(safe-area-inset-bottom, 0px)); border: 1px solid var(--line); border-radius: 23px 23px 0 0; color: var(--ink); background: var(--card); }
+#vocabularyDialog::backdrop { background: rgba(25, 50, 36, .38); }
+.nb-handle { position: absolute; top: 12px; left: calc(50% - 18px); width: 36px; height: 4px; border-radius: 5px; background: var(--line); }
+.nb-close { position: absolute; top: 18px; right: 13px; min-width: 44px; min-height: 44px; border: 0; background: none; color: var(--ink2); }
+.nb-dialog-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 23px 0 12px; }
+.nb-dialog-row h2 { margin: 0; font: 500 34px Georgia, "Songti SC", serif; overflow-wrap: anywhere; }
+.nb-collect { width: 100%; min-height: 48px; margin-top: 26px; background: var(--mint, var(--accent-soft)); color: var(--ink); border-color: var(--line); border-radius: 11px; font-size: 14px; }
+.nb-collect:disabled { opacity: .65; }
+.nb-dialog-status { font-size: 12px; color: var(--ink2); min-height: 18px; }
+.nb-toast { position: fixed; z-index: 15; bottom: 96px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 28px); padding: 12px 17px; border-radius: 11px; background: var(--ink); color: var(--card); font: 12px/1.6 "PingFang SC", sans-serif; }
+[hidden] { display: none !important; }

@@ -56,7 +56,7 @@ async function test() {
   mock.stores.get('books').set('book:old', { id: 'book:old', name: 'existing.txt', text: '旧数据' });
   const store = createReaderStore(mock.indexedDB);
   await store.ready;
-  assert.equal(mock.version(), 2);
+  assert.equal(mock.version(), 3);
   assert.equal((await store.get('books', 'book:old')).text, '旧数据', 'migration must preserve old books');
   const records = {
     books: [{ id: 'book:a', name: 'same.txt', text: '第一本' }, { id: 'book:b', name: 'same.txt', text: '第二本' }],
@@ -65,6 +65,11 @@ async function test() {
     meta: [{ id: 'current', bookId: 'book:a', wordbookId: 'wordbook:a' }],
   };
   await store.write(records);
+  const word = { word: 'friend', meaning: '朋友', pos: 'n.', lang: 'en-US' };
+  const first = await store.collectWord(word);
+  assert.equal(first.added, true);
+  assert.equal((await store.collectWord({ ...word, lang: 'en-GB' })).added, false);
+  assert.equal((await store.all('vocabulary')).length, 1);
   await store.deleteBook('book:a');
   assert.equal(await store.get('books', 'book:a'), undefined);
   assert.equal(await store.get('sessions', 'book:a'), undefined);
@@ -72,6 +77,7 @@ async function test() {
   assert.equal((await store.get('meta', 'current')).wordbookId, 'wordbook:a');
   assert.ok(await store.get('books', 'book:b'));
   assert.ok(await store.get('wordbooks', 'wordbook:a'));
+  assert.equal((await store.all('vocabulary')).length, 1, 'book deletion must keep collected words');
   assert.deepEqual((await store.write(records)).deletedBookIds, ['book:a']);
   assert.equal(await store.get('books', 'book:a'), undefined, 'stale bulk save must not resurrect deleted content');
   await store.write({ sessions: records.sessions, meta: records.meta });
@@ -81,6 +87,8 @@ async function test() {
   assert.ok(await store.get('books', 'book:a'));
   assert.equal(await store.get('deletedBooks', 'book:a'), undefined, 'explicit reimport clears the tombstone');
   assert.deepEqual((await store.write({ sessions: records.sessions })).deletedBookIds, []);
+  await store.deleteWord(first.record.id);
+  assert.equal((await store.all('vocabulary')).length, 0);
   console.log('Storage migration, transactional deletion, tombstone write protection and explicit restore tests passed.');
 }
 test().catch(error => { console.error(error); process.exitCode = 1; });

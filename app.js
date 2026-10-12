@@ -56,6 +56,7 @@ const state = {
   res: null,
   dict: null,
   entries: [],
+  wordDetails: new Map(),
   skipped: [],
   filtered: [],
   ambiguous: [],
@@ -253,6 +254,7 @@ function selectedExcelText() {
     target: Number($('excelTarget').value),
     definition: Number($('excelDefinition').value),
     startRow: excel.columns.startRow,
+    pos: excel.columns.header.findIndex(cell => /^(?:词性|part\s*of\s*speech|pos)$/i.test(cell)),
   });
   if (!parseWordbook(result.text, { strict: false }).entries.length) {
     throw new Error('所选列无法识别为词条，请检查单词列和中文释义列');
@@ -293,7 +295,7 @@ $('excelSheet').addEventListener('change', () => { selectExcelSheet(); updateExc
 
 function renderRep(seg, mode) {
   const target = seg.target == null ? seg.en : seg.target;
-  const attr = `data-term="${escapeHtml(target)}"`;
+  const attr = `data-term="${escapeHtml(target)}" data-meaning="${escapeHtml(seg.zh)}"`;
   if (mode === 'en') return `<span class="w" ${attr} dir="auto" title="${escapeHtml(seg.zh)}">${escapeHtml(target)}</span>`;
   if (mode === 'zhen') return `<span class="w zh" ${attr}>${escapeHtml(seg.zh)}<i>（<b class="term" dir="auto">${escapeHtml(target)}</b>）</i></span>`;
   return `<span class="w" ${attr}><b class="term" dir="auto">${escapeHtml(target)}</b><i>（${escapeHtml(seg.zh)}）</i></span>`;
@@ -305,6 +307,7 @@ function generate() {
   const { dict, entries, skipped, filtered, ambiguous, dominantScript } = parseWordbook(state.wb, { strict: o.strict });
   state.dict = dict;
   state.entries = entries;
+  state.wordDetails = new Map(entries.map(entry => [JSON.stringify([entry.zh, entry.target]), entry]));
   state.skipped = skipped;
   state.filtered = filtered;
   state.ambiguous = ambiguous;
@@ -673,6 +676,7 @@ $('page').addEventListener('click', (e) => {
   const w = e.target.closest('.w');
   if (w && page.classList.contains('notes-tap')) w.classList.toggle('revealed');
   if (w && $('speakOnWord').checked) window.readerSpeech?.speak(w.dataset.term);
+  if (w) window.readerVocabulary?.open(w.dataset.term, w.dataset.meaning);
 });
 
 // 全部显示 / 全部隐藏

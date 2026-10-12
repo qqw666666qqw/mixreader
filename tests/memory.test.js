@@ -5,7 +5,7 @@ const { webcrypto } = require('node:crypto');
 const { validateReaderBackup } = require('../storage.js');
 
 async function test() {
-  const records = Object.fromEntries(['books', 'wordbooks', 'sessions', 'meta'].map(name => [name, new Map()]));
+  const records = Object.fromEntries(['books', 'wordbooks', 'sessions', 'meta', 'vocabulary'].map(name => [name, new Map()]));
   const deleted = new Set();
   const store = {
     ready: Promise.resolve(), get: async (name, id) => records[name].get(id),
@@ -77,6 +77,13 @@ async function test() {
   await memory.changed('settings', { view: 'reader', offset: 12, y: 70 });
   assert.equal(records.sessions.get(firstId).anchor.offset, 12);
   assert.equal(records.books.size, 1);
+  memory.setNotebookOpen(true);
+  const frozen = memory.capture();
+  state.res = {};
+  assert.equal(memory.capture(), frozen, 'notebook scroll must not change the reading anchor');
+  memory.restorePosition({ view: 'reader', offset: 20, y: 70 });
+  assert.equal(memory.capture().offset, 20);
+  memory.setNotebookOpen(false);
   state.bk = '另一份不同正文'; state.bkName = 'book.txt';
   await memory.changed('book');
   assert.equal(records.books.size, 2, 'same filename, different contents must remain separate');

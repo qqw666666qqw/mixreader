@@ -33,7 +33,7 @@ function suggestExcelColumns(rows) {
   return { target, definition, startRow: 0, header: [] };
 }
 
-function excelRowsToWordbook(rows, { target, definition, startRow = 0 }) {
+function excelRowsToWordbook(rows, { target, definition, startRow = 0, pos = -1 }) {
   if (target < 0 || definition < 0 || target === definition) {
     throw new Error('请选择不同的单词列和中文释义列；只有英文单词的表格无法替换中文');
   }
@@ -47,7 +47,11 @@ function excelRowsToWordbook(rows, { target, definition, startRow = 0 }) {
       skipped++;
       continue;
     }
-    lines.push(`${word}\t${meaning}`);
+    const rawPos = pos >= 0 && pos !== target && pos !== definition ? excelCellText(row[pos]) : '';
+    const names = { '名词': 'n.', '动词': 'v.', '形容词': 'adj.', '副词': 'adv.', '介词': 'prep.', '代词': 'pron.', '连词': 'conj.' };
+    const validPos = /^(?:(?:n|v|vt|vi|adj|adv|prep|pron|conj|num|art|aux|interj|int)\.?|名词|动词|形容词|副词|介词|代词|连词)(?:\s*[/&,]\s*(?:(?:n|v|vt|vi|adj|adv|prep|pron|conj|num|art|aux|interj|int)\.?|名词|动词|形容词|副词|介词|代词|连词))*$/i.test(rawPos);
+    const label = rawPos.replace(/名词|动词|形容词|副词|介词|代词|连词/g, value => names[value]);
+    lines.push(`${word}${validPos ? ' ' + label : ''}\t${meaning}`);
   }
   if (!lines.length) throw new Error('所选列没有有效的“单词 + 中文释义”，请检查列选择或补充中文释义');
   return { text: lines.join('\n'), count: lines.length, skipped };

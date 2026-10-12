@@ -1,0 +1,37 @@
+const assert = require('node:assert/strict');
+const { parseWordbook, wordbookPos } = require('../core.js');
+const { normalizeVocabulary, vocabularyExcelRows, vocabularyPosLabel } = require('../vocabulary.js');
+const { excelRowsToWordbook } = require('../excel.js');
+const { validateReaderBackup } = require('../storage.js');
+const XLSX = require('../vendor/xlsx.full.min.js');
+
+const entries = parseWordbook('happy adj. 快乐的；高兴的\nwalk v. 散步；行走\nfriend n. 朋友\nbonjour interj. 你好\nmoon 月亮').entries;
+assert.equal(entries.find(item => item.zh === '快乐').pos, 'adj.');
+assert.equal(entries.find(item => item.zh === '快乐').meaning, '快乐的；高兴的');
+assert.equal(entries.find(item => item.target === 'walk').pos, 'v.');
+assert.equal(entries.find(item => item.target === 'friend').pos, 'n.');
+assert.equal(entries.find(item => item.target === 'moon').pos, '');
+assert.equal(wordbookPos(' /frend/ n. '), 'n.');
+assert.equal(wordbookPos(' n. / v. '), 'n. / v.');
+const excelText = excelRowsToWordbook([['单词', '词性', '中文释义'], ['happy', '形容词', '快乐的；高兴的']], { target: 0, pos: 1, definition: 2, startRow: 1 }).text;
+assert.equal(parseWordbook(excelText).entries[0].pos, 'adj.');
+
+const a = normalizeVocabulary({ word: 'friend', meaning: '朋友', pos: 'n.', lang: 'en-US' });
+assert.equal(a.id, normalizeVocabulary({ ...a, lang: 'en-GB', word: 'FRIEND' }).id);
+assert.notEqual(a.id, normalizeVocabulary({ ...a, meaning: '友人' }).id);
+assert.notEqual(a.id, normalizeVocabulary({ ...a, lang: 'fr-FR' }).id);
+assert.throws(() => normalizeVocabulary({ ...a, meaning: '' }), /无效/);
+assert.throws(() => normalizeVocabulary({ ...a, lang: 'javascript:bad' }), /无效/);
+assert.equal(vocabularyPosLabel('n. / v.'), 'n. 名词 / v. 动词');
+const rows = vocabularyExcelRows([a]);
+assert.deepEqual(rows[0], ['单词', '词性', '中文释义']);
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '生词本');
+const reopened = XLSX.read(XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' }), { type: 'buffer' });
+assert.deepEqual(XLSX.utils.sheet_to_json(reopened.Sheets['生词本'], { header: 1 }), rows);
+const backup = { format: 'jiadu-backup', version: 1, books: [], wordbooks: [], sessions: [], meta: [] };
+assert.equal(validateReaderBackup(backup).vocabulary, undefined, 'old backups leave existing vocabulary untouched');
+assert.deepEqual(validateReaderBackup({ ...backup, vocabulary: [a] }).vocabulary, [a]);
+assert.throws(() => validateReaderBackup({ ...backup, vocabulary: [{ ...a, id: 'wrong' }] }), /标识/);
+assert.throws(() => validateReaderBackup({ ...backup, vocabulary: [a, a] }), /重复/);
+console.log('Dictionary POS/full definitions, vocabulary identity, Excel and old/new backup tests passed.');

@@ -1,12 +1,15 @@
 // Small transactional records for progress; large texts are written only on import.
+if (typeof module !== 'undefined' && module.exports) {
+  var { normalizeVocabulary } = require('./vocabulary.js');
+}
 function createReaderStore(indexedDB) {
   let database;
   const ready = new Promise((resolve, reject) => {
     if (!indexedDB) { reject(new Error('当前浏览器无法保存书籍，请不要使用无痕模式')); return; }
-    const request = indexedDB.open('jiadu-personal-reader', 2);
+    const request = indexedDB.open('jiadu-personal-reader', 3);
     request.onupgradeneeded = () => {
       const db = request.result;
-      for (const name of ['books', 'wordbooks', 'sessions', 'meta', 'deletedBooks']) {
+      for (const name of ['books', 'wordbooks', 'sessions', 'meta', 'deletedBooks', 'vocabulary']) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' });
       }
     };
@@ -38,6 +41,18 @@ function createReaderStore(indexedDB) {
       const request = tx.objectStore(name).getAll();
       request.onsuccess = () => done(request.result);
     }),
+    collectWord: item => transaction(['vocabulary'], 'readwrite', (tx, done) => {
+      const record = normalizeVocabulary(item);
+      const store = tx.objectStore('vocabulary');
+      const request = store.get(record.id);
+      request.onsuccess = () => {
+        const existing = request.result;
+        if (!existing) store.put(record);
+        else if (!existing.pos && record.pos) store.put({ ...existing, pos: record.pos });
+        done({ added: !existing, record: existing || record });
+      };
+    }),
+    deleteWord: id => transaction(['vocabulary'], 'readwrite', tx => { tx.objectStore('vocabulary').delete(id); }),
     write: (records, { reviveBooks = false } = {}) => transaction([...new Set([...Object.keys(records), 'deletedBooks'])], 'readwrite', (tx, done) => {
       const deletions = tx.objectStore('deletedBooks');
       const revived = new Set(reviveBooks ? (records.books || []).map(book => book.id) : []);
@@ -109,6 +124,16 @@ function validateReaderBackup(data) {
   for (const meta of result.meta) {
     if (meta.id !== 'current' || (meta.bookId && !books.has(meta.bookId)) ||
         (meta.wordbookId && !words.has(meta.wordbookId))) throw new Error('备份的当前书籍关联无效');
+  }
+  if (data.vocabulary !== undefined) {
+    if (!Array.isArray(data.vocabulary) || data.vocabulary.length > 10000) throw new Error('生词本备份无效');
+    const ids = new Set();
+    result.vocabulary = data.vocabulary.map(item => {
+      const record = normalizeVocabulary(item);
+      if (item.id !== record.id || ids.has(record.id)) throw new Error('生词本记录标识无效或重复');
+      ids.add(record.id);
+      return record;
+    });
   }
   return result;
 }

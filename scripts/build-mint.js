@@ -10,14 +10,15 @@ const page = source
   .replace('<h1>夹读<small>多语混读阅读器</small></h1>',
     '<h1>夹读<small>多语混读阅读器</small><span class="theme-label">薄荷粉版</span></h1>')
   .replace(/src="(?!https?:)([^"]+)"/g, 'src="../$1"');
+const mintPage = page.replace('href="notebook.css?', 'href="../notebook.css?');
 const output = path.join(root, 'mint/index.html');
 
 if (process.argv.includes('--check')) {
-  if (!fs.existsSync(output) || fs.readFileSync(output, 'utf8') !== page) {
+  if (!fs.existsSync(output) || fs.readFileSync(output, 'utf8') !== mintPage) {
     throw new Error('mint/index.html is stale; run node scripts/build-mint.js');
   }
   console.log('Mint page matches the original controls and shared assets.');
 } else {
-  fs.writeFileSync(output, page);
+  fs.writeFileSync(output, mintPage);
   console.log('Generated mint/index.html; original index.html was not modified.');
 }
