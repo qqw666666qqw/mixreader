@@ -29,14 +29,14 @@ async function test() {
     if (!elements.has(id)) elements.set(id, element());
     return elements.get(id);
   };
-  for (const [id, value] of Object.entries({ notesMode: 'tap', minLen: '2', density: '100', fontSize: '20', wbEnc: 'utf-8', bkEnc: 'utf-8', speechLang: 'en-US', speechRate: '.9' })) {
+  for (const [id, value] of Object.entries({ notesMode: 'tap', minLen: '2', density: '100', fontSize: '20', wbEnc: 'utf-8', bkEnc: 'utf-8', speechLang: 'en-US', speechRate: '.9', speechEngine: 'online' })) {
     get(id).value = value; get(id).options = [{ value }];
   }
   const state = { bk: null, wb: null, bkName: '', wbName: '', excel: null, res: null, chapterIndex: 0, chapters: [] };
   let backupText;
   const context = vm.createContext({
     state, $: get, createReaderStore: () => store, validateReaderBackup,
-    createReaderSpeech: () => ({ refresh() {}, setVoice() {}, voicePreference: () => '' }),
+    createReaderSpeech: () => ({ refresh() {}, setVoice() {}, stop() {}, voicePreference: () => '' }),
     opts: () => ({ mode: 'enzh' }), escapeHtml: text => text,
     window: { indexedDB: {}, innerHeight: 800, addEventListener() {}, confirm: () => true, scrollTo() {} },
     document: { addEventListener() {}, querySelector: () => ({ checked: false }) },
@@ -53,11 +53,14 @@ async function test() {
   state.bk = '第一章\n正文'; state.bkName = 'book.txt';
   state.wb = 'friend 朋友'; state.wbName = 'words.txt';
   state.chapterIndex = 1;
+  get('allowNetworkSpeech').checked = true;
   await memory.changed('all');
   assert.equal(records.books.size, 1);
   assert.equal(records.wordbooks.size, 1);
   const firstId = [...records.books.keys()][0];
   assert.equal(records.sessions.get(firstId).chapter, 1);
+  assert.equal(records.sessions.get(firstId).settings.speechEngine, 'online');
+  assert.equal(records.sessions.get(firstId).settings.allowNetworkSpeech, true);
   await memory.changed('settings', { view: 'reader', offset: 12, y: 70 });
   assert.equal(records.sessions.get(firstId).anchor.offset, 12);
   assert.equal(records.books.size, 1);

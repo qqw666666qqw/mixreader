@@ -50,11 +50,12 @@ async function test() {
   assert.match(controls.status.textContent, /moon/);
   spoken[1].onend();
   assert.equal(controls.status.textContent, '发音完成');
-  spoken[1].onerror({ error: 'network' });
+  speech.speak('cloud');
+  spoken[2].onerror({ error: 'network' });
   assert.match(controls.status.textContent, /发音失败/);
   controls.lang.value = 'ja-JP';
   speech.speak('こんにちは');
-  assert.equal(spoken.length, 2);
+  assert.equal(spoken.length, 3);
   assert.match(controls.status.textContent, /没有该语言/);
   controls.stop.handlers.click();
   assert.equal(controls.status.textContent, '已停止发音');

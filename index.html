@@ -99,6 +99,12 @@
   #savedBooks { width: 100%; margin: 6px 0 10px; }
   .speak-btn { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 2px 5px; margin: 0 3px; min-width: 32px; min-height: 32px; font: 11px "PingFang SC", sans-serif; color: var(--accent-deep); background: var(--accent-soft); border: 1px solid var(--line); border-radius: 6px; }
   .speech-controls select { width: 100%; margin-bottom: 8px; }
+  .speech-feedback { position: fixed; z-index: 20; bottom: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px)); padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 28px rgba(0,0,0,.16); }
+  .speech-feedback[hidden] { display: none; }
+  .speech-feedback p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; }
+  .speech-feedback-actions { display: flex; gap: 8px; }
+  .speech-feedback button { min-height: 44px; font-size: 13px; color: var(--accent-deep); background: var(--accent-soft); border-color: var(--line); }
+  .speech-feedback button[hidden] { display: none; }
   @media (pointer: coarse) { .speak-btn { min-width: 44px; min-height: 44px; } }
 
   .opt { margin: 12px 0 0; font-size: 13.5px; }
@@ -332,7 +338,11 @@
 
     <section class="card sans speech-controls">
       <h2>单词发音</h2>
-      <p class="hint">点击单词旁“发音”；点单词仍显示释义。语言需手动选择，部分设备声音需要联网，单词可能被系统语音服务处理。</p>
+      <p class="hint">点击单词旁“发音”；点单词仍显示释义。鸿蒙等设备若系统发音无声，可开启英文联网发音。播放提示会在屏幕底部显示。</p>
+      <label for="speechEngine">发音方式</label>
+      <select id="speechEngine"><option value="auto">自动选择</option><option value="device">设备语音</option><option value="online">英文联网发音（适用于鸿蒙）</option></select>
+      <label class="checkline"><input type="checkbox" id="allowNetworkSpeech">允许英文联网发音：仅将点击的词条发送给有道，不发送书籍正文；需要联网，第三方服务可能不可用。</label>
+      <p class="hint">默认不向有道发请求。设备语音是否联网取决于系统；其他语言仍需设备提供对应声音。</p>
       <label for="speechLang">发音语言 / 口音</label>
       <select id="speechLang"><option value="en-US">英语 · 美音</option><option value="en-GB">英语 · 英音</option><option value="ja-JP">日语</option><option value="ko-KR">韩语</option><option value="fr-FR">法语</option><option value="de-DE">德语</option><option value="es-ES">西班牙语</option><option value="ru-RU">俄语</option><option value="ar-SA">阿拉伯语</option><option value="it-IT">意大利语</option><option value="pt-BR">葡萄牙语</option><option value="zh-CN">中文</option></select>
       <label for="speechVoice">设备声音</label><select id="speechVoice"><option value="">自动选择</option></select>
@@ -378,6 +388,14 @@
   </div>
   <div id="directoryList" class="directory-list"></div>
 </dialog>
+<div id="speechFeedback" class="speech-feedback sans" hidden>
+  <p id="speechFeedbackText" role="status" aria-live="polite"></p>
+  <p id="speechNetworkNotice" hidden>联网发音仅将点击的英文词条发送给有道，不发送书籍正文；需联网，选择会保存在本机，可在发音设置中取消。</p>
+  <div class="speech-feedback-actions">
+    <button type="button" id="retryNetworkSpeech" hidden>同意联网并发音</button>
+    <button type="button" id="dismissSpeech">停止 / 关闭</button>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -385,8 +403,8 @@
 <script src="core.js?v=20261012-1"></script>
 <script src="excel.js?v=20261012-1"></script>
 <script src="storage.js?v=20261012-1"></script>
-<script src="speech.js?v=20261012-1"></script>
+<script src="speech.js?v=20261012-2"></script>
 <script src="app.js?v=20261012-1"></script>
-<script src="memory.js?v=20261012-1"></script>
+<script src="memory.js?v=20261012-2"></script>
 </body>
 </html>

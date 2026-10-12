@@ -10,11 +10,15 @@
   let storageFailed = false;
   let backupUrl;
   let lastReadingAnchor, anchorBook, anchorChapter;
-  const settingsIds = ['notesMode', 'minLen', 'density', 'fontSize', 'wbEnc', 'bkEnc', 'speechLang', 'speechVoice', 'speechRate'];
-  const checkIds = ['strictMode', 'speakOnWord'];
+  const settingsIds = ['notesMode', 'minLen', 'density', 'fontSize', 'wbEnc', 'bkEnc', 'speechLang', 'speechVoice', 'speechRate', 'speechEngine'];
+  const checkIds = ['strictMode', 'speakOnWord', 'allowNetworkSpeech'];
   window.readerSpeech = createReaderSpeech(window, {
     lang: $('speechLang'), voice: $('speechVoice'), rate: $('speechRate'),
     stop: $('stopSpeech'), status: $('speechStatus'),
+    engine: $('speechEngine'), network: $('allowNetworkSpeech'),
+    feedback: $('speechFeedback'), feedbackText: $('speechFeedbackText'),
+    retry: $('retryNetworkSpeech'), dismiss: $('dismissSpeech'),
+    notice: $('speechNetworkNotice'),
   });
 
   function settings() {
@@ -260,10 +264,10 @@
     timer = setTimeout(() => changed('progress'), 400);
   }, { passive: true });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { changed('progress'); window.speechSynthesis?.cancel(); }
+    if (document.visibilityState === 'hidden') { changed('progress'); window.readerSpeech.stop(); }
   });
-  window.addEventListener('pagehide', () => changed('progress'));
-  ['speechLang', 'speechVoice', 'speechRate', 'speakOnWord'].forEach(id => $(id).addEventListener('change', () => changed('settings')));
+  window.addEventListener('pagehide', () => { changed('progress'); window.readerSpeech.stop(); });
+  ['speechLang', 'speechVoice', 'speechRate', 'speakOnWord', 'speechEngine', 'allowNetworkSpeech'].forEach(id => $(id).addEventListener('change', () => changed('settings')));
 
   $('openSavedBook').addEventListener('click', async () => {
     try {
