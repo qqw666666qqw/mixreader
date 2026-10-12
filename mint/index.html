@@ -93,7 +93,8 @@
   #excelOptions label { display: block; margin-bottom: 5px; color: var(--ink2); }
   #excelOptions select { width: 100%; min-width: 0; }
   #excelSummary { margin: 10px 0 0; }
-  .memory-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .memory-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #persistStorage { grid-column: 1 / -1; }
   .memory-actions button { font-size: 12px; background: var(--card); color: var(--ink); border-color: var(--line); min-height: 44px; }
   #savedBooks { width: 100%; margin: 6px 0 10px; }
   .speak-btn { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 2px 5px; margin: 0 3px; min-width: 32px; min-height: 32px; font: 11px "PingFang SC", sans-serif; color: var(--accent-deep); background: var(--accent-soft); border: 1px solid var(--line); border-radius: 6px; }
