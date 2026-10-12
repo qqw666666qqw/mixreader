@@ -93,6 +93,12 @@
   #excelOptions label { display: block; margin-bottom: 5px; color: var(--ink2); }
   #excelOptions select { width: 100%; min-width: 0; }
   #excelSummary { margin: 10px 0 0; }
+  .memory-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .memory-actions button { font-size: 12px; background: var(--card); color: var(--ink); border-color: var(--line); min-height: 44px; }
+  #savedBooks { width: 100%; margin: 6px 0 10px; }
+  .speak-btn { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; padding: 2px 5px; margin: 0 3px; min-width: 32px; min-height: 32px; font: 11px "PingFang SC", sans-serif; color: var(--accent-deep); background: var(--accent-soft); border: 1px solid var(--line); border-radius: 6px; }
+  .speech-controls select { width: 100%; margin-bottom: 8px; }
+  @media (pointer: coarse) { .speak-btn { min-width: 44px; min-height: 44px; } }
 
   .opt { margin: 12px 0 0; font-size: 13.5px; }
   .opt > span { display: block; color: var(--ink2); font-size: 12.5px; margin-bottom: 5px; }
@@ -227,6 +233,22 @@
 
 <main>
   <aside>
+    <section class="card sans">
+      <h2>本机书库与进度</h2>
+      <p class="hint">在同一手机、同一浏览器中自动恢复。两种配色共用书库，不上传、不跨设备同步；清理网站数据可能丢失，请定期备份。</p>
+      <p id="saveStatus" class="status" role="status">正在读取本机书库…</p>
+      <label for="savedBooks">已保存的中文书</label>
+      <select id="savedBooks"><option value="">暂无已保存书籍</option></select>
+      <div class="memory-actions">
+        <button type="button" id="openSavedBook">继续阅读</button>
+        <button type="button" id="deleteSavedBook">删除所选书</button>
+        <button type="button" id="backupLibrary">备份书库</button>
+        <button type="button" id="restoreLibrary">恢复备份</button>
+        <button type="button" id="persistStorage">申请持久保存</button>
+      </div>
+      <input type="file" id="backupFile" accept=".json,application/json">
+      <p class="hint"><a id="backupDownload" hidden download="夹读书库备份.json">点击下载备份文件</a></p>
+    </section>
     <section class="card" id="wbZone">
       <h2>① 目标语词书 <small>.txt / .docx / .pdf / .xlsx / .xls</small></h2>
       <p class="hint sans">左侧写目标语，右侧写中文，如 <code>bonjour 你好</code>、<code>こんにちは 你好</code>、<code>사랑 爱</code><br>支持短语和词性标注；多语 TXT 建议使用 UTF-8 编码</p>
@@ -251,7 +273,7 @@
 
     <section class="card" id="bkZone">
       <h2>② 中文书 <small>.txt / .docx / .pdf</small></h2>
-      <p class="hint sans">电脑可拖拽；手机/iPad 可从“文件”选择。书籍仅在当前浏览器处理，不上传、不跨设备同步。</p>
+      <p class="hint sans">电脑可拖拽；手机/iPad 可从“文件”选择。导入后自动保存在本机浏览器，不上传、不跨设备同步。</p>
       <div class="filerow sans">
         <label class="btn-file" for="bkFile">选择中文书…</label>
         <input type="file" id="bkFile" accept=".txt,.docx,.pdf,text/plain">
@@ -307,6 +329,18 @@
       </div>
     </section>
 
+    <section class="card sans speech-controls">
+      <h2>单词发音</h2>
+      <p class="hint">点击单词旁“发音”；点单词仍显示释义。语言需手动选择，部分设备声音需要联网，单词可能被系统语音服务处理。</p>
+      <label for="speechLang">发音语言 / 口音</label>
+      <select id="speechLang"><option value="en-US">英语 · 美音</option><option value="en-GB">英语 · 英音</option><option value="ja-JP">日语</option><option value="ko-KR">韩语</option><option value="fr-FR">法语</option><option value="de-DE">德语</option><option value="es-ES">西班牙语</option><option value="ru-RU">俄语</option><option value="ar-SA">阿拉伯语</option><option value="it-IT">意大利语</option><option value="pt-BR">葡萄牙语</option><option value="zh-CN">中文</option></select>
+      <label for="speechVoice">设备声音</label><select id="speechVoice"><option value="">自动选择</option></select>
+      <label for="speechRate">语速</label><select id="speechRate"><option value="0.7">慢速</option><option value="0.9" selected>适中</option><option value="1.1">正常偏快</option></select>
+      <label class="checkline"><input type="checkbox" id="speakOnWord">点击词条时也发音</label>
+      <button type="button" id="stopSpeech">停止发音</button>
+      <p id="speechStatus" class="status" role="status"></p>
+    </section>
+
     <div class="actions sans">
       <button id="demoBtn">载入示例</button>
       <button id="exportBtn" disabled>导出 TXT</button>
@@ -347,8 +381,11 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js?v=0.20.3"></script>
-<script src="core.js?v=20261010-7"></script>
-<script src="excel.js?v=20261010-7"></script>
-<script src="app.js?v=20261010-7"></script>
+<script src="core.js?v=20261012-1"></script>
+<script src="excel.js?v=20261012-1"></script>
+<script src="storage.js?v=20261012-1"></script>
+<script src="speech.js?v=20261012-1"></script>
+<script src="app.js?v=20261012-1"></script>
+<script src="memory.js?v=20261012-1"></script>
 </body>
 </html>

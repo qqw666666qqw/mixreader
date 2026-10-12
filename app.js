@@ -271,6 +271,7 @@ function updateExcelWordbook() {
     $('wbStatus').classList.remove('err');
     $('wbZone').classList.add('ok');
     generate();
+    window.readerMemory?.changed('wordbook');
   } catch (err) {
     state.wb = null;
     state.res = null;
@@ -292,9 +293,10 @@ $('excelSheet').addEventListener('change', () => { selectExcelSheet(); updateExc
 
 function renderRep(seg, mode) {
   const target = seg.target == null ? seg.en : seg.target;
-  if (mode === 'en') return `<span class="w" dir="auto" title="${escapeHtml(seg.zh)}">${escapeHtml(target)}</span>`;
-  if (mode === 'zhen') return `<span class="w zh">${escapeHtml(seg.zh)}<i>（<b class="term" dir="auto">${escapeHtml(target)}</b>）</i></span>`;
-  return `<span class="w"><b class="term" dir="auto">${escapeHtml(target)}</b><i>（${escapeHtml(seg.zh)}）</i></span>`;
+  const attr = `data-term="${escapeHtml(target)}"`;
+  if (mode === 'en') return `<span class="w" ${attr} dir="auto" title="${escapeHtml(seg.zh)}">${escapeHtml(target)}</span>`;
+  if (mode === 'zhen') return `<span class="w zh" ${attr}>${escapeHtml(seg.zh)}<i>（<b class="term" dir="auto">${escapeHtml(target)}</b>）</i></span>`;
+  return `<span class="w" ${attr}><b class="term" dir="auto">${escapeHtml(target)}</b><i>（${escapeHtml(seg.zh)}）</i></span>`;
 }
 
 function generate() {
@@ -328,10 +330,16 @@ function generate() {
   $('exportHtmlBtn').disabled = false;
 }
 
-function renderSegments(res, mode) {
-  return res.out.map((seg) =>
-    seg.t === 'txt' ? escapeHtml(seg.s) : renderRep(seg, mode)
-  ).join('');
+function renderSegments(res, mode, interactive = false) {
+  let offset = 0;
+  return res.out.map(seg => {
+    const start = offset;
+    offset += seg.t === 'txt' ? seg.s.length : seg.zh.length;
+    const html = seg.t === 'txt' ? escapeHtml(seg.s) : renderRep(seg, mode);
+    if (!interactive) return html;
+    const audio = seg.t === 'rep' ? `<button type="button" class="speak-btn" data-speak="${escapeHtml(seg.target ?? seg.en)}" aria-label="发音：${escapeHtml(seg.target ?? seg.en)}">发音</button>` : '';
+    return `<span data-source-start="${start}" data-source-length="${offset - start}" data-source-text="${seg.t === 'txt'}">${html}${audio}</span>`;
+  }).join('');
 }
 
 function renderPage(mode, notesMode) {
@@ -340,7 +348,7 @@ function renderPage(mode, notesMode) {
   page.classList.toggle('notes-tap', notesMode === 'tap');
   page.classList.remove('all-revealed');
   if (!state.res) return;
-  page.innerHTML = `<h2 class="chapter-title">${escapeHtml(currentChapter().title)}</h2>${renderSegments(state.res, mode)}`;
+  page.innerHTML = `<h2 class="chapter-title">${escapeHtml(currentChapter().title)}</h2>${renderSegments(state.res, mode, true)}`;
 }
 
 function vocabHtml(counts, dict) {
@@ -418,6 +426,7 @@ function renderCleanReport(skipped, filtered, ambiguous) {
       status.classList.remove('err');
       zone.classList.add('ok');
       generate();
+      window.readerMemory?.changed(kind === 'bk' ? 'book' : 'wordbook');
     } catch (err) {
       if (version !== importVersion) return;
       status.textContent = `解析失败：${err && err.message ? err.message : err}`;
@@ -440,6 +449,7 @@ function renderCleanReport(skipped, filtered, ambiguous) {
 // Only replacement settings need a new transform; display settings re-render the current chapter.
 document.querySelectorAll('input[name="mode"], #notesMode, #strictMode, #minLen, #density, #fontSize').forEach((el) => {
   el.addEventListener('input', () => {
+    const anchor = window.readerMemory?.capture();
     $('densityOut').textContent = $('density').value + '%';
     if (state.res) {
       if (el.id === 'strictMode' || el.id === 'minLen' || el.id === 'density') generate();
@@ -448,6 +458,8 @@ document.querySelectorAll('input[name="mode"], #notesMode, #strictMode, #minLen,
         renderPage(o.mode, o.notesMode);
       }
     }
+    window.readerMemory?.restorePosition(anchor);
+    window.readerMemory?.changed('settings', anchor);
   });
 });
 
@@ -458,6 +470,7 @@ function goToChapter(index) {
     generate();
   }
   $('reader').scrollIntoView({ block: 'start' });
+  window.readerMemory?.changed('progress');
 }
 
 $('chapterSelect').addEventListener('change', (e) => goToChapter(+e.target.value));
@@ -485,6 +498,7 @@ $('demoBtn').addEventListener('click', () => {
   $('bkZone').classList.add('ok');
   $('bkStatus').textContent = `已加载：示例中文书（${SAMPLE_BK.length.toLocaleString()} 字 · ${state.chapters.length} 章）`;
   generate();
+  window.readerMemory?.changed('all');
 });
 
 async function transformAllChapters(o, onProgress) {
@@ -653,10 +667,12 @@ $('exportHtmlBtn').addEventListener('click', async () => {
 
 // 点击单词切换注释显示（自测模式）
 $('page').addEventListener('click', (e) => {
+  const audio = e.target.closest('[data-speak]');
+  if (audio) { window.readerSpeech?.speak(audio.dataset.speak); return; }
   const page = $('page');
-  if (!page.classList.contains('notes-tap')) return;
   const w = e.target.closest('.w');
-  if (w) w.classList.toggle('revealed');
+  if (w && page.classList.contains('notes-tap')) w.classList.toggle('revealed');
+  if (w && $('speakOnWord').checked) window.readerSpeech?.speak(w.dataset.term);
 });
 
 // 全部显示 / 全部隐藏
