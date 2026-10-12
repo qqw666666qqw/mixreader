@@ -155,6 +155,7 @@
       if (storageFailed && !content) return;
       const records = { meta: [], sessions: [] };
       const now = Date.now();
+      if (snapshot.wb == null) wordbookId = null;
       if ((kind === 'book' || kind === 'all') && snapshot.bk != null) {
         bookId = await contentId('book', snapshot.bk);
         records.books = [{ id: bookId, name: snapshot.bkName, text: snapshot.bk, updatedAt: now }];
